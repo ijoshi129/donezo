@@ -1,0 +1,11 @@
+.git
+.gitignore
+node_modules
+npm-debug.log*
+.DS_Store
+stitch_swipe_task_manager.zip
+instructions.txt
+*.log
+tmp
+dist
+coverage

@@ -1,0 +1,16 @@
+.agents/
+.codex/
+.DS_Store
+node_modules/
+npm-debug.log*
+*.log
+tmp/
+dist/
+coverage/
+
+# Local task data can contain user content and attached images.
+data/
+
+# Source prompt/reference artifacts, not application source.
+instructions.txt
+stitch_swipe_task_manager.zip
