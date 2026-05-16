@@ -2,6 +2,8 @@ const API_BASE = "/api/tasks";
 const SWIPE_TRIGGER_RATIO = 0.28;
 const HORIZONTAL_LOCK_PX = 8;
 const SWIPE_COMMIT_MS = 290;
+const SWIPE_COMMIT_MIN_MS = 180;
+const SWIPE_COMMIT_MAX_MS = 360;
 const DELETE_ANIMATION_MS = 260;
 const GROUP_MOVE_MS = 360;
 const MAX_IMAGE_EDGE = 1600;
@@ -467,16 +469,25 @@ function wireSwipe(node, surface, id) {
     if (shouldToggle || shouldDelete) {
       const current = tasks.find((task) => task.id === id);
       const direction = shouldToggle ? 1 : -1;
+      const targetX = direction * width;
+      const commitMs = getSwipeCommitDuration(currentX, targetX);
       node.classList.toggle("show-complete", shouldToggle);
       node.classList.toggle("show-delete", shouldDelete);
+      if (frame) {
+        cancelAnimationFrame(frame);
+        frame = null;
+      }
+      surface.style.transform = `translate3d(${currentX}px, 0, 0)`;
+      surface.getBoundingClientRect();
+      finishSwipeGesture();
+      surface.style.setProperty("--swipe-commit-ms", `${commitMs}ms`);
       node.classList.add("is-committing");
-      endSwipe({ reset: false });
 
       requestAnimationFrame(() => {
-        surface.style.transform = `translate3d(${direction * width}px, 0, 0)`;
+        surface.style.transform = `translate3d(${targetX}px, 0, 0)`;
       });
 
-      waitForSwipeCommit(surface).then(() => {
+      waitForSwipeCommit(surface, commitMs).then(() => {
         if (shouldToggle) {
           toggleTask(id, current ? !current.completed : true);
         } else {
@@ -517,11 +528,34 @@ function wireSwipe(node, surface, id) {
     }
     pointerId = null;
   }
+
+  function finishSwipeGesture() {
+    if (frame) {
+      cancelAnimationFrame(frame);
+      frame = null;
+    }
+    isPointerDown = false;
+    isHorizontalSwipe = false;
+    node.classList.remove("is-dragging");
+    document.body.classList.remove("is-swiping");
+    if (pointerId !== null && node.hasPointerCapture(pointerId)) {
+      node.releasePointerCapture(pointerId);
+    }
+    pointerId = null;
+  }
 }
 
-function waitForSwipeCommit(surface) {
+function getSwipeCommitDuration(fromX, toX) {
+  const distance = Math.abs(toX - fromX);
+  return Math.round(Math.max(
+    SWIPE_COMMIT_MIN_MS,
+    Math.min(SWIPE_COMMIT_MAX_MS, distance * 0.82),
+  ));
+}
+
+function waitForSwipeCommit(surface, duration = SWIPE_COMMIT_MS) {
   return new Promise((resolve) => {
-    const timeout = window.setTimeout(done, SWIPE_COMMIT_MS + 80);
+    const timeout = window.setTimeout(done, duration + 80);
 
     function done() {
       window.clearTimeout(timeout);
