@@ -94,6 +94,20 @@ async function routeApi(request, response, url) {
     return;
   }
 
+  if (url.pathname === "/api/tasks/reorder" && request.method === "POST") {
+    const body = await readJson(request);
+    const ids = Array.isArray(body.ids) ? body.ids : [];
+    const known = new Map(store.tasks.map((task) => [task.id, task]));
+    let index = 0;
+    for (const id of ids) {
+      const task = known.get(id);
+      if (task) task.order = index++;
+    }
+    await saveStore();
+    sendJson(response, 200, { tasks: sortTasks(store.tasks) });
+    return;
+  }
+
   if (url.pathname === "/api/tasks" && request.method === "POST") {
     const body = await readJson(request);
     const title = String(body.title || "").trim();
@@ -355,8 +369,15 @@ function sendJson(response, status, body) {
 function sortTasks(tasks) {
   return [...tasks].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
-    return b.createdAt - a.createdAt;
+    if (a.completed) return b.createdAt - a.createdAt;
+    return orderKey(a) - orderKey(b);
   });
+}
+
+// Open tasks follow an explicit manual `order` once reordered; until then they
+// fall back to newest-first (a large negative key keeps new tasks on top).
+function orderKey(task) {
+  return typeof task.order === "number" ? task.order : -task.createdAt;
 }
 
 async function clearCompletedAfterNoon() {

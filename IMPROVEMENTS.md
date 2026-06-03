@@ -26,6 +26,35 @@ vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Manual reordering via long-press drag (New feature)
+
+**What:** Press and hold an open task for ~0.36s to "pick it up" (it lifts with a shadow), then
+drag vertically to reposition and release to drop. The new order persists.
+
+**Why:** Newest-first is a fine default but you often want your own priority order. Reordering
+is the natural way to say "this matters most."
+
+**Why long-press instead of a drag handle:** the app is swipe-first — every card already
+listens to horizontal swipes (complete/delete) and vertical drags (scroll). Adding a visible
+grip would crowd the card and a plain vertical drag would fight scrolling. A short hold is an
+unambiguous "pick up" signal that doesn't collide with either gesture, and it adds no new
+chrome. Implemented inside the existing pointer handler so the three gestures share one stream:
+- move within 6px before the hold completes → it's a swipe/scroll, reorder is cancelled;
+- hold still for 360ms → reorder engages and scrolling locks;
+- the existing horizontal-lock logic is untouched.
+
+**Details:**
+- New `order` field; open tasks sort by it once reordered, else fall back to newest-first
+  (so brand-new tasks still appear on top even after you've reordered). Completed tasks keep
+  their newest-first ordering.
+- New `POST /api/tasks/reorder` assigns sequential order indices; client updates optimistically
+  and re-syncs from the server response. Drop position is computed from where you release.
+- Reuses the existing FLIP animation so the card glides into its new slot.
+
+**Files:** `server.js` (`order` field, order-aware `sortTasks`, `/api/tasks/reorder`),
+`app.js` (long-press detection, drag, drop-target math, persistence, matching sort),
+`styles.css` (lift styling), `sw.js` (cache bump v8 → v9).
+
 ### Tags / categories (New feature)
 
 **What:** Tasks can carry up to 8 tags. Add/remove them in the edit modal (type a tag, press

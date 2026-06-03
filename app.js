@@ -9,6 +9,8 @@ const GROUP_MOVE_MS = 360;
 const MAX_IMAGE_EDGE = 1600;
 const IMAGE_QUALITY = 0.82;
 const UNDO_WINDOW_MS = 5000;
+const LONG_PRESS_MS = 360;
+const REORDER_CANCEL_PX = 6;
 
 const elements = {
   composer: document.querySelector("#composer"),
@@ -611,11 +613,16 @@ function wireSwipe(node, surface, id) {
   let startX = 0;
   let startY = 0;
   let currentX = 0;
+  let lastClientY = 0;
   let width = 0;
   let isPointerDown = false;
   let isHorizontalSwipe = false;
   let pointerId = null;
   let frame = null;
+  let longPressTimer = null;
+  let reorderActive = false;
+  let reorderStartY = 0;
+  let reorderCards = [];
 
   node.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
@@ -624,11 +631,14 @@ function wireSwipe(node, surface, id) {
     pointerId = event.pointerId;
     startX = event.clientX;
     startY = event.clientY;
+    lastClientY = event.clientY;
     currentX = 0;
     width = node.getBoundingClientRect().width;
     isPointerDown = true;
     isHorizontalSwipe = false;
     node.setPointerCapture(pointerId);
+    clearLongPress();
+    longPressTimer = window.setTimeout(enterReorder, LONG_PRESS_MS);
   });
 
   node.addEventListener("pointermove", (event) => {
@@ -638,6 +648,18 @@ function wireSwipe(node, surface, id) {
     const sample = coalescedEvents?.[coalescedEvents.length - 1] || event;
     const dx = sample.clientX - startX;
     const dy = sample.clientY - startY;
+    lastClientY = sample.clientY;
+
+    if (reorderActive) {
+      if (event.cancelable) event.preventDefault();
+      node.style.transform = `translateY(${sample.clientY - reorderStartY}px)`;
+      return;
+    }
+
+    // Movement before the hold completes means swipe/scroll, not reorder.
+    if (longPressTimer && (Math.abs(dx) > REORDER_CANCEL_PX || Math.abs(dy) > REORDER_CANCEL_PX)) {
+      clearLongPress();
+    }
 
     if (!isHorizontalSwipe) {
       if (Math.abs(dx) < HORIZONTAL_LOCK_PX && Math.abs(dy) < HORIZONTAL_LOCK_PX) return;
@@ -659,10 +681,79 @@ function wireSwipe(node, surface, id) {
   }, { passive: false });
 
   node.addEventListener("pointerup", finishPointer);
-  node.addEventListener("pointercancel", () => endSwipe({ reset: true }));
+  node.addEventListener("pointercancel", () => {
+    clearLongPress();
+    if (reorderActive) {
+      exitReorder({ resetTransform: true });
+      render();
+    } else {
+      endSwipe({ reset: true });
+    }
+  });
+
+  function clearLongPress() {
+    if (longPressTimer) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  function enterReorder() {
+    longPressTimer = null;
+    if (!isPointerDown || isHorizontalSwipe) return;
+    const current = tasks.find((task) => task.id === id);
+    if (!current || current.completed || id.startsWith("pending-")) return;
+    reorderCards = collectOpenCards();
+    if (reorderCards.length < 2) return;
+    reorderActive = true;
+    reorderStartY = lastClientY;
+    node.classList.add("is-lifting");
+    document.body.classList.add("is-swiping");
+  }
+
+  function dropReorder(clientY) {
+    const openIds = reorderCards.map((card) => card.id);
+    const remaining = reorderCards.filter((card) => card.id !== id);
+    const insertIndex = remaining.filter((card) => card.center < clientY).length;
+    const newOpenIds = [
+      ...remaining.slice(0, insertIndex).map((card) => card.id),
+      id,
+      ...remaining.slice(insertIndex).map((card) => card.id),
+    ];
+
+    exitReorder({ resetTransform: true });
+
+    if (openIds.join() === newOpenIds.join()) {
+      render();
+      return;
+    }
+
+    const previousRects = getTaskRects();
+    applyLocalOrder(newOpenIds);
+    render({ previousRects });
+    persistReorder(newOpenIds);
+  }
+
+  function exitReorder({ resetTransform }) {
+    reorderActive = false;
+    reorderCards = [];
+    node.classList.remove("is-lifting");
+    document.body.classList.remove("is-swiping");
+    if (resetTransform) node.style.transform = "";
+    isPointerDown = false;
+    if (pointerId !== null && node.hasPointerCapture(pointerId)) {
+      node.releasePointerCapture(pointerId);
+    }
+    pointerId = null;
+  }
 
   function finishPointer(event) {
     if (event.pointerId !== pointerId) return;
+    clearLongPress();
+    if (reorderActive) {
+      dropReorder(event.clientY);
+      return;
+    }
     if (isHorizontalSwipe) {
       node.dataset.swipedAt = String(Date.now());
     }
@@ -715,6 +806,7 @@ function wireSwipe(node, surface, id) {
   }
 
   function endSwipe({ reset }) {
+    clearLongPress();
     if (frame) {
       cancelAnimationFrame(frame);
       frame = null;
@@ -749,6 +841,38 @@ function wireSwipe(node, surface, id) {
   }
 }
 
+function collectOpenCards() {
+  const cards = [];
+  for (const el of elements.list.querySelectorAll(".task-card[data-id]")) {
+    if (el.classList.contains("is-complete")) continue;
+    const rect = el.getBoundingClientRect();
+    cards.push({ id: el.dataset.id, center: rect.top + rect.height / 2 });
+  }
+  return cards;
+}
+
+function applyLocalOrder(orderedIds) {
+  const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
+  tasks = tasks.map((task) => (
+    orderMap.has(task.id) ? { ...task, order: orderMap.get(task.id) } : task
+  ));
+}
+
+async function persistReorder(orderedIds) {
+  try {
+    const data = await apiRequest(`${API_BASE}/reorder`, {
+      method: "POST",
+      body: { ids: orderedIds },
+    });
+    if (Array.isArray(data.tasks)) {
+      // Keep server-authoritative order without re-animating; UI already matches.
+      tasks = data.tasks.filter((task) => !pendingDeleteIds.has(task.id));
+    }
+  } catch {
+    hydrateTasks({ quiet: true });
+  }
+}
+
 function getSwipeCommitDuration(fromX, toX) {
   const distance = Math.abs(toX - fromX);
   return Math.round(Math.max(
@@ -780,8 +904,13 @@ function waitForSwipeCommit(surface, duration = SWIPE_COMMIT_MS) {
 function sortTasks(taskList) {
   return [...taskList].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
-    return b.createdAt - a.createdAt;
+    if (a.completed) return b.createdAt - a.createdAt;
+    return orderKey(a) - orderKey(b);
   });
+}
+
+function orderKey(task) {
+  return typeof task.order === "number" ? task.order : -task.createdAt;
 }
 
 async function readImageFile(file) {
