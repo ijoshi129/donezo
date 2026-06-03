@@ -524,6 +524,11 @@ function render(options = {}) {
     ? sortedTasks.filter((task) => matchesFilter(task, filter))
     : sortedTasks;
 
+  // Rebuilding the list destroys any node owning an in-progress swipe/reorder,
+  // so its pointer handlers can't run their own cleanup. Release the scroll lock
+  // here so a render triggered mid-gesture can't leave the page stuck.
+  document.body.classList.remove("is-swiping");
+
   elements.list.replaceChildren();
   const openTasks = visibleTasks.filter((task) => !task.completed);
   const doneTasks = visibleTasks.filter((task) => task.completed);

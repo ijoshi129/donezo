@@ -57,6 +57,16 @@ tag-tap filtering still opens search correctly and isn't immediately dismissed b
 **Files:** `app.js` (outside-click + Escape handlers, `closeComposer`/`closeSearch`, FAB toggle),
 `sw.js` (cache bump v11 → v12).
 
+**Second bug found while auditing — stuck scroll lock:** during a long-press reorder the body
+gets `is-swiping` (which sets `touch-action: none` to stop the page scrolling under the drag).
+If an async `render()` fired mid-drag (from the online event, tab-focus refresh, the noon
+refresh, or an outbox sync resolving), it rebuilt the list and destroyed the lifted card — so
+that card's `pointerup`/`pointercancel` cleanup never ran and `is-swiping` stayed on the body,
+**locking page scroll until reload.** Fixed by clearing the lock inside `render()` at the point
+it tears the list down (a normally-finishing gesture already cleared it before its own render,
+and a mid-gesture render kills the node anyway). Verified the lock now releases and normal
+reorder is unaffected. (`sw.js` cache bump v12 → v13.)
+
 ### True offline support (PWA)
 
 **What:** The app now works with no connection. You can open it offline and see your tasks, and
