@@ -26,6 +26,31 @@ vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Image attachments stored as files, not base64 in JSON (Performance/storage)
+
+**What:** Attached images are now written to `data/images/<uuid>.<ext>` and the task only
+stores a small reference URL (`/api/images/<uuid>.<ext>`), served by a new `GET /api/images/:file`
+route with long-lived immutable caching. Previously every image lived as a base64 blob inside
+`tasks.json`.
+
+**Why:** Base64 images were embedded in `tasks.json` and re-sent **in full on every
+`GET /api/tasks`** — which fires on tab focus and at noon. A few photos meant shipping
+megabytes per poll and bloating the single JSON file (and holding it all in memory). Now each
+task list response carries tiny URLs; the browser caches the actual images and only fetches
+each once.
+
+**Details:**
+- Upload contract unchanged for the client: it still POSTs/PATCHes a resized `data:` URL.
+  The server decodes it, writes the file, and returns the reference URL. The frontend needed
+  **zero changes** — a URL works as an `<img src>` just like a data URL did.
+- Replacing an image swaps the file and deletes the old one; clearing an image or deleting a
+  task removes the file; the noon cleanup removes images of cleared tasks. No orphan files.
+- **Automatic migration:** on startup any old inline base64 images are converted to files and
+  the field rewritten — so your friend's existing `tasks.json` upgrades itself with no data loss.
+- Path-traversal guarded (`path.basename` + prefix check) on the image route.
+
+**Files:** `server.js` (image persistence, serving, migration, cleanup hooks).
+
 ### Settings panel + opt-out for the noon auto-clear (Polish)
 
 **What:** Added a gear icon in the top bar that opens a **Settings** dialog. First setting:

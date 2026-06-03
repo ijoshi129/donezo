@@ -7,6 +7,8 @@ const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "tasks.json");
+const IMAGE_DIR = path.join(DATA_DIR, "images");
+const IMAGE_URL_PREFIX = "/api/images/";
 const MAX_REQUEST_BYTES = 6_000_000;
 const MAX_IMAGE_BYTES = 5_500_000;
 
@@ -16,6 +18,10 @@ const MIME_TYPES = {
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
   ".svg": "image/svg+xml; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
@@ -38,6 +44,7 @@ start().catch((error) => {
 
 async function start() {
   await loadStore();
+  await migrateLegacyImages();
   await clearCompletedAfterNoon();
 
   const server = http.createServer((request, response) => {
@@ -98,7 +105,7 @@ async function routeApi(request, response, url) {
     const task = {
       id: crypto.randomUUID(),
       title: title.slice(0, 140),
-      image: normalizeImage(body.image),
+      image: await persistImage(body.image, null),
       completed: false,
       createdAt: Date.now(),
       completedAt: null,
@@ -127,7 +134,7 @@ async function routeApi(request, response, url) {
       task.title = body.title.trim().slice(0, 140) || task.title;
     }
     if (Object.hasOwn(body, "image")) {
-      task.image = normalizeImage(body.image);
+      task.image = await persistImage(body.image, task.image);
     }
 
     await saveStore();
@@ -137,15 +144,21 @@ async function routeApi(request, response, url) {
 
   if (taskMatch && request.method === "DELETE") {
     const id = decodeURIComponent(taskMatch[1]);
-    const before = store.tasks.length;
-    store.tasks = store.tasks.filter((task) => task.id !== id);
-    if (store.tasks.length === before) {
+    const removed = store.tasks.find((task) => task.id === id);
+    if (!removed) {
       sendJson(response, 404, { error: "Task not found" });
       return;
     }
-
+    store.tasks = store.tasks.filter((task) => task.id !== id);
+    await deleteImageFile(removed.image);
     await saveStore();
     sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  const imageMatch = url.pathname.match(/^\/api\/images\/([^/]+)$/);
+  if (imageMatch && request.method === "GET") {
+    await serveImage(response, imageMatch[1]);
     return;
   }
 
@@ -211,12 +224,90 @@ async function readJson(request) {
   return raw ? JSON.parse(raw) : {};
 }
 
-function normalizeImage(value) {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "string") return null;
-  if (Buffer.byteLength(value, "utf8") > MAX_IMAGE_BYTES) return null;
-  if (!/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) return null;
-  return value;
+// Resolve an incoming image field to a stored reference URL.
+// - data: URL  -> decode, write a file, return its /api/images/ URL
+// - existing /api/images/ URL -> keep the current file unchanged
+// - null/""/invalid -> clear (and remove the previous file)
+async function persistImage(value, previous) {
+  if (value === null || value === undefined || value === "") {
+    await deleteImageFile(previous);
+    return null;
+  }
+  if (typeof value !== "string") {
+    return previous ?? null;
+  }
+  if (value.startsWith(IMAGE_URL_PREFIX)) {
+    return previous ?? null;
+  }
+
+  const decoded = decodeImageDataUrl(value);
+  if (!decoded) {
+    return previous ?? null;
+  }
+
+  await fs.mkdir(IMAGE_DIR, { recursive: true });
+  const filename = `${crypto.randomUUID()}.${decoded.ext}`;
+  await fs.writeFile(path.join(IMAGE_DIR, filename), decoded.buffer);
+  await deleteImageFile(previous);
+  return `${IMAGE_URL_PREFIX}${filename}`;
+}
+
+function decodeImageDataUrl(value) {
+  const match = /^data:image\/(png|jpeg|jpg|webp|gif);base64,([a-z0-9+/=]+)$/i.exec(value);
+  if (!match) return null;
+  const ext = match[1].toLowerCase() === "jpeg" ? "jpg" : match[1].toLowerCase();
+  const buffer = Buffer.from(match[2], "base64");
+  if (buffer.byteLength === 0 || buffer.byteLength > MAX_IMAGE_BYTES) return null;
+  return { ext, buffer };
+}
+
+async function deleteImageFile(reference) {
+  if (typeof reference !== "string" || !reference.startsWith(IMAGE_URL_PREFIX)) return;
+  const filename = path.basename(reference.slice(IMAGE_URL_PREFIX.length));
+  try {
+    await fs.unlink(path.join(IMAGE_DIR, filename));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+}
+
+async function serveImage(response, rawName) {
+  const filename = path.basename(decodeURIComponent(rawName));
+  const filePath = path.join(IMAGE_DIR, filename);
+  if (!filePath.startsWith(IMAGE_DIR + path.sep)) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  try {
+    const body = await fs.readFile(filePath);
+    response.writeHead(200, {
+      "Content-Type": MIME_TYPES[path.extname(filename)] || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    });
+    response.end(body);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      response.writeHead(404);
+      response.end("Not found");
+      return;
+    }
+    throw error;
+  }
+}
+
+// One-time migration: convert any inline base64 images from older data files
+// into image files on disk, replacing the field with a reference URL.
+async function migrateLegacyImages() {
+  let changed = false;
+  for (const task of store.tasks) {
+    if (typeof task.image === "string" && task.image.startsWith("data:")) {
+      task.image = await persistImage(task.image, null);
+      changed = true;
+    }
+  }
+  if (changed) await saveStore();
 }
 
 function sendJson(response, status, body) {
@@ -243,9 +334,13 @@ async function clearCompletedAfterNoon() {
   if (!store.settings.autoClearNoon) return;
 
   if (now >= noon && store.lastNoonCleanup !== noonKey) {
+    const cleared = store.tasks.filter((task) => task.completed);
     store.tasks = store.tasks.filter((task) => !task.completed);
     store.lastNoonCleanup = noonKey;
     await saveStore();
+    for (const task of cleared) {
+      await deleteImageFile(task.image);
+    }
   }
 }
 
