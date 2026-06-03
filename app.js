@@ -25,6 +25,7 @@ const elements = {
   tagEditor: document.querySelector("#tag-editor"),
   tagEditorList: document.querySelector("#tag-editor-list"),
   tagInput: document.querySelector("#tag-input"),
+  editRecurrence: document.querySelector("#edit-recurrence"),
   duePicker: document.querySelector("#due-picker"),
   taskDue: document.querySelector("#task-due"),
   newDueChip: document.querySelector("#new-due-chip"),
@@ -65,6 +66,7 @@ let editingImage = null;
 let pendingDueDate = null;
 let editingDueDate = null;
 let editingTags = [];
+let editingRecurrence = "none";
 let pendingDelete = null;
 const pendingDeleteIds = new Set();
 let settings = { autoClearNoon: true };
@@ -178,6 +180,10 @@ elements.tagEditor.addEventListener("click", (event) => {
   if (event.target === elements.tagEditor || event.target === elements.tagEditorList) {
     elements.tagInput.focus();
   }
+});
+
+elements.editRecurrence.addEventListener("change", () => {
+  editingRecurrence = elements.editRecurrence.value;
 });
 
 elements.editForm.addEventListener("submit", (event) => {
@@ -318,6 +324,10 @@ async function toggleTask(id, forceComplete, node = null) {
       body: { completed },
     });
     tasks = tasks.map((task) => (task.id === id ? data.task : task));
+    // A recurring task that just completed spawns its next occurrence.
+    if (data.spawned && !tasks.some((task) => task.id === data.spawned.id)) {
+      tasks = [data.spawned, ...tasks];
+    }
     render();
   } catch {
     tasks = previousTasks;
@@ -404,13 +414,14 @@ async function saveTaskEdit() {
     elements.tagInput.value = "";
   }
   const nextTags = [...editingTags];
+  const nextRecurrence = editingRecurrence;
   if (!id || !cleanTitle || isSaving) return;
 
   const previousTasks = tasks;
   isSaving = true;
   tasks = tasks.map((task) => (
     task.id === id
-      ? { ...task, title: cleanTitle, image: nextImage, dueDate: nextDueDate, tags: nextTags }
+      ? { ...task, title: cleanTitle, image: nextImage, dueDate: nextDueDate, tags: nextTags, recurrence: nextRecurrence }
       : task
   ));
   closeEditModal();
@@ -419,7 +430,7 @@ async function saveTaskEdit() {
   try {
     const data = await apiRequest(`${API_BASE}/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: { title: cleanTitle, image: nextImage, dueDate: nextDueDate, tags: nextTags },
+      body: { title: cleanTitle, image: nextImage, dueDate: nextDueDate, tags: nextTags, recurrence: nextRecurrence },
     });
     tasks = tasks.map((task) => (task.id === id ? data.task : task));
     render();
@@ -489,6 +500,12 @@ function createTaskNode(task) {
     due.classList.toggle("is-today", !task.completed && dueInfo.tone === "today");
     due.classList.toggle("is-soon", !task.completed && dueInfo.tone === "soon");
     dueLabel.textContent = dueInfo.label;
+  }
+
+  if (isRecurring(task.recurrence)) {
+    const repeat = node.querySelector(".task-repeat");
+    repeat.hidden = false;
+    repeat.querySelector(".task-repeat-label").textContent = capitalize(task.recurrence);
   }
 
   const tagsHost = node.querySelector(".task-tags");
@@ -567,9 +584,11 @@ function openEditModal(task) {
   editingImage = task.image || null;
   editingDueDate = task.dueDate || null;
   editingTags = Array.isArray(task.tags) ? [...task.tags] : [];
+  editingRecurrence = task.recurrence || "none";
   elements.editTitle.value = task.title;
   elements.editImage.value = "";
   elements.editDue.value = task.dueDate || "";
+  elements.editRecurrence.value = editingRecurrence;
   elements.tagInput.value = "";
   renderTagEditor();
   renderImagePreview(elements.editImagePreview, editingImage);
@@ -587,8 +606,10 @@ function resetEditState() {
   editingImage = null;
   editingDueDate = null;
   editingTags = [];
+  editingRecurrence = "none";
   elements.editImage.value = "";
   elements.editDue.value = "";
+  elements.editRecurrence.value = "none";
   elements.tagInput.value = "";
   renderTagEditor();
 }
@@ -911,6 +932,14 @@ function sortTasks(taskList) {
 
 function orderKey(task) {
   return typeof task.order === "number" ? task.order : -task.createdAt;
+}
+
+function isRecurring(recurrence) {
+  return recurrence === "daily" || recurrence === "weekly" || recurrence === "monthly";
+}
+
+function capitalize(value) {
+  return value ? value[0].toUpperCase() + value.slice(1) : value;
 }
 
 async function readImageFile(file) {

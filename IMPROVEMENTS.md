@@ -26,6 +26,31 @@ vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Recurring tasks (New feature)
+
+**What:** A task can repeat **Daily / Weekly / Monthly** (set via a "Repeat" dropdown in the edit
+modal). When you complete a recurring task, its next occurrence is created automatically — same
+title, tags, and recurrence, with the due date advanced by one interval. Cards show a `↻ Daily`
+style chip.
+
+**Why:** Chores and routines (standups, rent, water the plants) come back on a schedule.
+Auto-recreating them on completion means you never have to retype them.
+
+**Details:**
+- Spawn happens **server-side on the complete transition** (`PATCH completed:true`), so it's
+  reliable regardless of client, and it's idempotent — re-PATCHing an already-complete task
+  doesn't duplicate. The new occurrence is returned in the response (`{ task, spawned }`) so it
+  appears instantly without waiting for a refresh.
+- Due date advances from the prior due date (`06-05` daily → `06-06`); a recurring task with no
+  due date just respawns fresh with no date.
+- The attached image is **copied to a new file** for the new occurrence, so deleting one
+  instance never removes another's image.
+- Invalid recurrence values normalize to `none`; existing tasks default to non-recurring.
+
+**Files:** `server.js` (recurrence validation, spawn-on-complete, `advanceDueDate`,
+`copyImageFile`), `app.js` (modal select, card chip, spawned-task insertion on complete),
+`index.html` (Repeat row + card chip), `styles.css` (styling), `sw.js` (cache bump v9 → v10).
+
 ### Manual reordering via long-press drag (New feature)
 
 **What:** Press and hold an open task for ~0.36s to "pick it up" (it lifts with a shadow), then

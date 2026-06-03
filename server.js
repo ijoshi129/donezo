@@ -122,6 +122,7 @@ async function routeApi(request, response, url) {
       image: await persistImage(body.image, null),
       dueDate: normalizeDueDate(body.dueDate),
       tags: normalizeTags(body.tags),
+      recurrence: normalizeRecurrence(body.recurrence),
       completed: false,
       createdAt: Date.now(),
       completedAt: null,
@@ -142,6 +143,7 @@ async function routeApi(request, response, url) {
     }
 
     const body = await readJson(request);
+    const wasCompleted = task.completed;
     if (typeof body.completed === "boolean") {
       task.completed = body.completed;
       task.completedAt = body.completed ? Date.now() : null;
@@ -158,9 +160,29 @@ async function routeApi(request, response, url) {
     if (Object.hasOwn(body, "tags")) {
       task.tags = normalizeTags(body.tags);
     }
+    if (Object.hasOwn(body, "recurrence")) {
+      task.recurrence = normalizeRecurrence(body.recurrence);
+    }
+
+    // Completing a recurring task spawns its next occurrence.
+    let spawned = null;
+    if (!wasCompleted && task.completed && isRecurring(task.recurrence)) {
+      spawned = {
+        id: crypto.randomUUID(),
+        title: task.title,
+        image: await copyImageFile(task.image),
+        dueDate: advanceDueDate(task.dueDate, task.recurrence),
+        tags: [...(task.tags || [])],
+        recurrence: task.recurrence,
+        completed: false,
+        createdAt: Date.now(),
+        completedAt: null,
+      };
+      store.tasks.push(spawned);
+    }
 
     await saveStore();
-    sendJson(response, 200, { task });
+    sendJson(response, 200, { task, spawned });
     return;
   }
 
@@ -287,6 +309,43 @@ function normalizeTags(value) {
     if (tags.length >= 8) break;
   }
   return tags;
+}
+
+const RECURRENCES = new Set(["none", "daily", "weekly", "monthly"]);
+
+function normalizeRecurrence(value) {
+  return RECURRENCES.has(value) ? value : "none";
+}
+
+function isRecurring(recurrence) {
+  return recurrence === "daily" || recurrence === "weekly" || recurrence === "monthly";
+}
+
+function advanceDueDate(dueDate, recurrence) {
+  if (!dueDate) return null;
+  const [year, month, day] = dueDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  if (recurrence === "daily") date.setDate(date.getDate() + 1);
+  else if (recurrence === "weekly") date.setDate(date.getDate() + 7);
+  else if (recurrence === "monthly") date.setMonth(date.getMonth() + 1);
+  else return dueDate;
+  return localDateKey(date);
+}
+
+async function copyImageFile(reference) {
+  if (typeof reference !== "string" || !reference.startsWith(IMAGE_URL_PREFIX)) {
+    return reference ?? null;
+  }
+  const srcName = path.basename(reference.slice(IMAGE_URL_PREFIX.length));
+  const newName = `${crypto.randomUUID()}${path.extname(srcName) || ".png"}`;
+  try {
+    await fs.mkdir(IMAGE_DIR, { recursive: true });
+    await fs.copyFile(path.join(IMAGE_DIR, srcName), path.join(IMAGE_DIR, newName));
+    return `${IMAGE_URL_PREFIX}${newName}`;
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 function normalizeDueDate(value) {

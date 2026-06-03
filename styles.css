@@ -977,6 +977,72 @@ input::placeholder {
   transform: scale(0.97);
 }
 
+.recurrence-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 8px 0 14px;
+  background: var(--panel-soft);
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.recurrence-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.recurrence-label svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+.recurrence-select {
+  width: auto;
+  min-height: 38px;
+  padding: 0 12px;
+  color: var(--text);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+}
+
+.recurrence-select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.task-repeat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 3px 9px 3px 7px;
+  color: var(--blue);
+  background: rgba(141, 181, 255, 0.14);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.task-repeat svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.task-card.is-complete .task-repeat {
+  color: var(--muted-soft);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .tag-editor {
   display: flex;
   flex-wrap: wrap;
