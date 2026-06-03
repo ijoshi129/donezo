@@ -26,6 +26,27 @@ vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Tags / categories (New feature)
+
+**What:** Tasks can carry up to 8 tags. Add/remove them in the edit modal (type a tag, press
+Enter or comma to turn it into a chip; backspace on the empty field removes the last; each chip
+has an ✕). Tags show as `#chips` on the card, and **tapping a tag filters the list to it**
+(opens search pre-filled). Search now matches tag text as well as titles.
+
+**Why:** Once you have more than a handful of tasks, grouping by context (#work, #home,
+#errands) is how you find things. Reuses the existing search bar for filtering so there's no
+new navigation to learn.
+
+**Details:**
+- Server normalizes tags: lowercased, `#` stripped, trimmed, de-duplicated, max 24 chars each,
+  max 8 per task. Non-array input becomes `[]`.
+- Backward compatible: tasks without a `tags` field are treated as untagged.
+- A tag still being typed when you hit Save is committed automatically.
+
+**Files:** `server.js` (`normalizeTags` + POST/PATCH), `app.js` (tag editor, card chips,
+tap-to-filter, search-by-tag), `index.html` (modal tag editor + card container),
+`styles.css` (tag chip/editor/card styling), `sw.js` (cache bump v7 → v8).
+
 ### Due dates (New feature)
 
 **What:** Tasks can now have an optional due date. Set it from a calendar button in the

@@ -20,6 +20,9 @@ const elements = {
   editTitle: document.querySelector("#edit-title"),
   editDue: document.querySelector("#edit-due"),
   editDueClear: document.querySelector("#edit-due-clear"),
+  tagEditor: document.querySelector("#tag-editor"),
+  tagEditorList: document.querySelector("#tag-editor-list"),
+  tagInput: document.querySelector("#tag-input"),
   duePicker: document.querySelector("#due-picker"),
   taskDue: document.querySelector("#task-due"),
   newDueChip: document.querySelector("#new-due-chip"),
@@ -59,6 +62,7 @@ let editingTaskId = null;
 let editingImage = null;
 let pendingDueDate = null;
 let editingDueDate = null;
+let editingTags = [];
 let pendingDelete = null;
 const pendingDeleteIds = new Set();
 let settings = { autoClearNoon: true };
@@ -155,6 +159,23 @@ elements.editDue.addEventListener("change", () => {
 elements.editDueClear.addEventListener("click", () => {
   editingDueDate = null;
   elements.editDue.value = "";
+});
+
+elements.tagInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === ",") {
+    event.preventDefault();
+    addEditingTag(elements.tagInput.value);
+    elements.tagInput.value = "";
+  } else if (event.key === "Backspace" && !elements.tagInput.value && editingTags.length) {
+    editingTags = editingTags.slice(0, -1);
+    renderTagEditor();
+  }
+});
+
+elements.tagEditor.addEventListener("click", (event) => {
+  if (event.target === elements.tagEditor || event.target === elements.tagEditorList) {
+    elements.tagInput.focus();
+  }
 });
 
 elements.editForm.addEventListener("submit", (event) => {
@@ -375,12 +396,20 @@ async function saveTaskEdit() {
   const cleanTitle = elements.editTitle.value.trim();
   const nextImage = editingImage;
   const nextDueDate = editingDueDate;
+  // Commit any tag still typed in the input but not yet turned into a chip.
+  if (elements.tagInput.value.trim()) {
+    addEditingTag(elements.tagInput.value);
+    elements.tagInput.value = "";
+  }
+  const nextTags = [...editingTags];
   if (!id || !cleanTitle || isSaving) return;
 
   const previousTasks = tasks;
   isSaving = true;
   tasks = tasks.map((task) => (
-    task.id === id ? { ...task, title: cleanTitle, image: nextImage, dueDate: nextDueDate } : task
+    task.id === id
+      ? { ...task, title: cleanTitle, image: nextImage, dueDate: nextDueDate, tags: nextTags }
+      : task
   ));
   closeEditModal();
   render();
@@ -388,7 +417,7 @@ async function saveTaskEdit() {
   try {
     const data = await apiRequest(`${API_BASE}/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: { title: cleanTitle, image: nextImage, dueDate: nextDueDate },
+      body: { title: cleanTitle, image: nextImage, dueDate: nextDueDate, tags: nextTags },
     });
     tasks = tasks.map((task) => (task.id === id ? data.task : task));
     render();
@@ -403,7 +432,7 @@ async function saveTaskEdit() {
 function render(options = {}) {
   const sortedTasks = sortTasks(tasks);
   const visibleTasks = filter
-    ? sortedTasks.filter((task) => task.title.toLowerCase().includes(filter))
+    ? sortedTasks.filter((task) => matchesFilter(task, filter))
     : sortedTasks;
 
   elements.list.replaceChildren();
@@ -458,6 +487,16 @@ function createTaskNode(task) {
     due.classList.toggle("is-today", !task.completed && dueInfo.tone === "today");
     due.classList.toggle("is-soon", !task.completed && dueInfo.tone === "soon");
     dueLabel.textContent = dueInfo.label;
+  }
+
+  const tagsHost = node.querySelector(".task-tags");
+  for (const tag of Array.isArray(task.tags) ? task.tags : []) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "task-tag";
+    chip.textContent = `#${tag}`;
+    chip.addEventListener("click", () => filterByTag(tag));
+    tagsHost.append(chip);
   }
   check.setAttribute("aria-label", task.completed ? "Mark incomplete" : "Mark complete");
   if (task.image) {
@@ -525,9 +564,12 @@ function openEditModal(task) {
   editingTaskId = task.id;
   editingImage = task.image || null;
   editingDueDate = task.dueDate || null;
+  editingTags = Array.isArray(task.tags) ? [...task.tags] : [];
   elements.editTitle.value = task.title;
   elements.editImage.value = "";
   elements.editDue.value = task.dueDate || "";
+  elements.tagInput.value = "";
+  renderTagEditor();
   renderImagePreview(elements.editImagePreview, editingImage);
   elements.modal.showModal();
   elements.editTitle.focus();
@@ -542,8 +584,11 @@ function resetEditState() {
   editingTaskId = null;
   editingImage = null;
   editingDueDate = null;
+  editingTags = [];
   elements.editImage.value = "";
   elements.editDue.value = "";
+  elements.tagInput.value = "";
+  renderTagEditor();
 }
 
 function openLightbox(task) {
@@ -812,6 +857,52 @@ function parseLocalDate(value) {
 function startOfToday() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function normalizeTag(value) {
+  return String(value || "").trim().replace(/^#+/, "").toLowerCase().slice(0, 24);
+}
+
+function addEditingTag(value) {
+  const tag = normalizeTag(value);
+  if (!tag || editingTags.includes(tag) || editingTags.length >= 8) return;
+  editingTags = [...editingTags, tag];
+  renderTagEditor();
+}
+
+function renderTagEditor() {
+  elements.tagEditorList.replaceChildren();
+  for (const tag of editingTags) {
+    const chip = document.createElement("span");
+    chip.className = "tag-chip";
+    chip.append(`#${tag}`);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `Remove tag ${tag}`);
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>';
+    remove.addEventListener("click", () => {
+      editingTags = editingTags.filter((item) => item !== tag);
+      renderTagEditor();
+    });
+
+    chip.append(remove);
+    elements.tagEditorList.append(chip);
+  }
+}
+
+function filterByTag(tag) {
+  elements.searchPanel.classList.add("is-open");
+  elements.searchInput.value = tag;
+  filter = tag.toLowerCase();
+  render();
+  elements.searchInput.focus();
+}
+
+function matchesFilter(task, term) {
+  if (task.title.toLowerCase().includes(term)) return true;
+  const tags = Array.isArray(task.tags) ? task.tags : [];
+  return tags.some((tag) => tag.includes(term));
 }
 
 function renderComposerDue() {

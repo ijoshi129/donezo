@@ -135,6 +135,7 @@
               </svg>
               <span class="task-due-label"></span>
             </span>
+            <span class="task-tags"></span>
             <button class="task-image-button" type="button" aria-label="View task image" hidden>
               <img alt="" />
             </button>
@@ -176,6 +177,10 @@
             <input id="edit-due" type="date" aria-label="Due date" />
           </label>
           <button class="due-clear-button" id="edit-due-clear" type="button">Clear</button>
+        </div>
+        <div class="tag-editor" id="tag-editor">
+          <span class="tag-editor-list" id="tag-editor-list"></span>
+          <input id="tag-input" class="tag-input" type="text" maxlength="24" placeholder="Add a tag…" aria-label="Add tag" />
         </div>
         <label class="modal-image-picker" for="edit-image">
           <svg viewBox="0 0 24 24" aria-hidden="true">

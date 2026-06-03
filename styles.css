@@ -966,6 +966,98 @@ input::placeholder {
   transform: scale(0.97);
 }
 
+.tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 10px;
+  background: var(--panel-soft);
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+}
+
+.tag-editor-list {
+  display: contents;
+}
+
+.tag-input {
+  flex: 1;
+  width: auto;
+  min-width: 96px;
+  min-height: 0;
+  padding: 4px 2px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+}
+
+.tag-input:focus-visible {
+  outline: none;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 11px;
+  color: var(--blue);
+  background: rgba(141, 181, 255, 0.16);
+  border: 1px solid rgba(141, 181, 255, 0.4);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tag-chip button {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.18);
+  border: 0;
+  border-radius: 999px;
+}
+
+.tag-chip button svg {
+  width: 11px;
+  height: 11px;
+}
+
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task-tags:empty {
+  display: none;
+}
+
+.task-tag {
+  padding: 2px 10px;
+  color: var(--blue);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(141, 181, 255, 0.14);
+  border: 0;
+  border-radius: 999px;
+}
+
+.task-tag:active {
+  transform: scale(0.95);
+}
+
+.task-card.is-complete .task-tag {
+  color: var(--muted-soft);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .setting-row {
   display: flex;
   align-items: center;

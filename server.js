@@ -107,6 +107,7 @@ async function routeApi(request, response, url) {
       title: title.slice(0, 140),
       image: await persistImage(body.image, null),
       dueDate: normalizeDueDate(body.dueDate),
+      tags: normalizeTags(body.tags),
       completed: false,
       createdAt: Date.now(),
       completedAt: null,
@@ -139,6 +140,9 @@ async function routeApi(request, response, url) {
     }
     if (Object.hasOwn(body, "dueDate")) {
       task.dueDate = normalizeDueDate(body.dueDate);
+    }
+    if (Object.hasOwn(body, "tags")) {
+      task.tags = normalizeTags(body.tags);
     }
 
     await saveStore();
@@ -254,6 +258,21 @@ async function persistImage(value, previous) {
   await fs.writeFile(path.join(IMAGE_DIR, filename), decoded.buffer);
   await deleteImageFile(previous);
   return `${IMAGE_URL_PREFIX}${filename}`;
+}
+
+function normalizeTags(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const tags = [];
+  for (const raw of value) {
+    if (typeof raw !== "string") continue;
+    const tag = raw.trim().replace(/^#+/, "").toLowerCase().slice(0, 24);
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+    if (tags.length >= 8) break;
+  }
+  return tags;
 }
 
 function normalizeDueDate(value) {
