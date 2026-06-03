@@ -1,4 +1,4 @@
-const CACHE_NAME = "donezo-pwa-v11";
+const CACHE_NAME = "donezo-pwa-v12";
 const APP_ASSETS = [
   "./",
   "./index.html",

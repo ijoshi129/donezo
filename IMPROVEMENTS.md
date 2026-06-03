@@ -39,6 +39,24 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Bug fixes: panel dismissal
+
+**What:** The add-task composer now closes when you click outside it or press Escape, and its
+draft (title / image / due date) resets on dismiss. The FAB toggles the composer open/closed.
+The search bar now also closes on Escape.
+
+**Why (the reported bug):** opening the composer (e.g. via the new calendar button) left it — and
+the due-date chip — stuck on screen; clicking away did nothing. Neither the composer nor the
+search bar had any outside-click/Escape dismissal.
+
+**Note on the search bar:** it deliberately does *not* close on every outside click. It's a filter
+bar — tapping a task in the results to act on it shouldn't wipe your filter and hide the box. So
+search dismisses via its toggle button (which clears the filter) or Escape. Verified that
+tag-tap filtering still opens search correctly and isn't immediately dismissed by the new handler.
+
+**Files:** `app.js` (outside-click + Escape handlers, `closeComposer`/`closeSearch`, FAB toggle),
+`sw.js` (cache bump v11 → v12).
+
 ### True offline support (PWA)
 
 **What:** The app now works with no connection. You can open it offline and see your tasks, and

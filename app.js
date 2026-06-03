@@ -90,20 +90,63 @@ elements.form.addEventListener("submit", (event) => {
 });
 
 elements.fab.addEventListener("click", () => {
-  elements.composer.classList.add("is-open");
-  elements.input.focus();
+  if (elements.composer.classList.contains("is-open")) {
+    closeComposer();
+  } else {
+    elements.composer.classList.add("is-open");
+    elements.input.focus();
+  }
 });
 
 elements.searchToggle.addEventListener("click", () => {
-  elements.searchPanel.classList.toggle("is-open");
   if (elements.searchPanel.classList.contains("is-open")) {
-    elements.searchInput.focus();
+    closeSearch();
   } else {
-    elements.searchInput.value = "";
+    elements.searchPanel.classList.add("is-open");
+    elements.searchInput.focus();
+  }
+});
+
+// Dismiss the composer when clicking outside it. (The search panel is a filter
+// bar — tapping a result shouldn't close it — so it only dismisses via its
+// toggle or Escape.)
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (
+    elements.composer.classList.contains("is-open") &&
+    !elements.composer.contains(target) &&
+    !elements.fab.contains(target)
+  ) {
+    closeComposer();
+  }
+});
+
+// Escape dismisses whichever panel is open.
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (elements.composer.classList.contains("is-open")) closeComposer();
+  if (elements.searchPanel.classList.contains("is-open")) closeSearch();
+});
+
+function closeComposer() {
+  elements.composer.classList.remove("is-open");
+  elements.input.value = "";
+  pendingImage = null;
+  elements.imageInput.value = "";
+  renderImagePreview(elements.newImagePreview, null);
+  pendingDueDate = null;
+  elements.taskDue.value = "";
+  renderComposerDue();
+}
+
+function closeSearch() {
+  elements.searchPanel.classList.remove("is-open");
+  elements.searchInput.value = "";
+  if (filter) {
     filter = "";
     render();
   }
-});
+}
 
 elements.searchInput.addEventListener("input", () => {
   filter = elements.searchInput.value.trim().toLowerCase();
