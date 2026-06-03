@@ -36,6 +36,10 @@ const elements = {
   searchInput: document.querySelector("#search-input"),
   searchPanel: document.querySelector("#search-panel"),
   searchToggle: document.querySelector("#search-toggle"),
+  settingsToggle: document.querySelector("#settings-toggle"),
+  settingsModal: document.querySelector("#settings-modal"),
+  settingsClose: document.querySelector("#settings-close"),
+  settingAutoClear: document.querySelector("#setting-auto-clear"),
   template: document.querySelector("#task-template"),
   toastRegion: document.querySelector("#toast-region"),
 };
@@ -48,9 +52,11 @@ let editingTaskId = null;
 let editingImage = null;
 let pendingDelete = null;
 const pendingDeleteIds = new Set();
+let settings = { autoClearNoon: true };
 
 render();
 hydrateTasks();
+loadSettings();
 scheduleNextNoonRefresh();
 registerServiceWorker();
 
@@ -78,6 +84,21 @@ elements.searchToggle.addEventListener("click", () => {
 elements.searchInput.addEventListener("input", () => {
   filter = elements.searchInput.value.trim().toLowerCase();
   render();
+});
+
+elements.settingsToggle.addEventListener("click", () => {
+  elements.settingAutoClear.checked = settings.autoClearNoon;
+  elements.settingsModal.showModal();
+});
+
+elements.settingsClose.addEventListener("click", () => elements.settingsModal.close());
+
+elements.settingsModal.addEventListener("click", (event) => {
+  if (event.target === elements.settingsModal) elements.settingsModal.close();
+});
+
+elements.settingAutoClear.addEventListener("change", () => {
+  updateSetting({ autoClearNoon: elements.settingAutoClear.checked });
 });
 
 elements.imageInput.addEventListener("change", async () => {
@@ -143,6 +164,27 @@ async function hydrateTasks(options = {}) {
       elements.empty.textContent = "Tasks could not be loaded.";
       elements.empty.classList.add("is-visible");
     }
+  }
+}
+
+async function loadSettings() {
+  try {
+    const data = await apiRequest("/api/settings");
+    if (data.settings) settings = { ...settings, ...data.settings };
+  } catch {
+    // Keep defaults if settings can't be loaded.
+  }
+}
+
+async function updateSetting(patch) {
+  const previous = settings;
+  settings = { ...settings, ...patch };
+  try {
+    const data = await apiRequest("/api/settings", { method: "PATCH", body: patch });
+    if (data.settings) settings = { ...settings, ...data.settings };
+  } catch {
+    settings = previous;
+    elements.settingAutoClear.checked = settings.autoClearNoon;
   }
 }
 

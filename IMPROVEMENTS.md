@@ -26,6 +26,29 @@ vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Settings panel + opt-out for the noon auto-clear (Polish)
+
+**What:** Added a gear icon in the top bar that opens a **Settings** dialog. First setting:
+a switch for **"Clear completed at noon"** (on by default — same behavior as before).
+Turn it off and completed tasks stick around.
+
+**Why:** The original silently deleted *all* completed tasks at 12:00 every day with no UI
+hinting it would happen and no way to stop it. That's a surprising, unrecoverable behavior.
+This keeps the friend's intended default but makes it discoverable and reversible. The gear
+also gives us a home for future options.
+
+**Details:**
+- New backend `store.settings` with `GET`/`PATCH /api/settings`. The noon cleanup (both the
+  scheduled job and the on-request check) now no-ops when `autoClearNoon` is false.
+- Backward compatible: old `tasks.json` files get defaults merged in on load; the key is
+  written on next save.
+- Optimistic toggle with rollback if the request fails.
+- Custom CSS switch styled to match the glassmorphic theme.
+
+**Files:** `server.js` (settings store + endpoint + cleanup gate), `app.js` (load/update +
+modal wiring), `index.html` (gear button + settings dialog), `styles.css` (switch + row),
+`sw.js` (cache bump v5 → v6).
+
 ### Undo for deletes (Safety)
 
 **What:** Deleting a task (swipe-left or the trash button) no longer hits the server

@@ -20,8 +20,13 @@ const MIME_TYPES = {
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
 
+const DEFAULT_SETTINGS = {
+  autoClearNoon: true,
+};
+
 let store = {
   lastNoonCleanup: null,
+  settings: { ...DEFAULT_SETTINGS },
   tasks: [],
 };
 let writeQueue = Promise.resolve();
@@ -64,6 +69,21 @@ async function route(request, response) {
 async function routeApi(request, response, url) {
   if (url.pathname === "/api/tasks" && request.method === "GET") {
     sendJson(response, 200, { tasks: sortTasks(store.tasks) });
+    return;
+  }
+
+  if (url.pathname === "/api/settings" && request.method === "GET") {
+    sendJson(response, 200, { settings: store.settings });
+    return;
+  }
+
+  if (url.pathname === "/api/settings" && request.method === "PATCH") {
+    const body = await readJson(request);
+    if (typeof body.autoClearNoon === "boolean") {
+      store.settings.autoClearNoon = body.autoClearNoon;
+    }
+    await saveStore();
+    sendJson(response, 200, { settings: store.settings });
     return;
   }
 
@@ -163,6 +183,7 @@ async function loadStore() {
   try {
     store = JSON.parse(await fs.readFile(DATA_FILE, "utf8"));
     if (!Array.isArray(store.tasks)) store.tasks = [];
+    store.settings = { ...DEFAULT_SETTINGS, ...(store.settings || {}) };
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
     await saveStore();
@@ -218,6 +239,8 @@ async function clearCompletedAfterNoon() {
   const noon = new Date(now);
   noon.setHours(12, 0, 0, 0);
   const noonKey = localDateKey(noon);
+
+  if (!store.settings.autoClearNoon) return;
 
   if (now >= noon && store.lastNoonCleanup !== noonKey) {
     store.tasks = store.tasks.filter((task) => !task.completed);

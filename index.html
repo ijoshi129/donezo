@@ -21,6 +21,12 @@
             <path d="m20 20-3.5-3.5" />
           </svg>
         </button>
+        <button class="icon-button" id="settings-toggle" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.6 7.6 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.3 1 2-3.4Z" />
+          </svg>
+        </button>
       </header>
 
       <main class="content">
@@ -156,6 +162,26 @@
           <button class="primary-button" type="submit">Save</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="modal" id="settings-modal" aria-labelledby="settings-title">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h2 id="settings-title">Settings</h2>
+          <button class="icon-button" id="settings-close" type="button" aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <label class="setting-row">
+          <span class="setting-text">
+            <span class="setting-label">Clear completed at noon</span>
+            <span class="setting-hint">Finished tasks are removed daily at 12:00.</span>
+          </span>
+          <input class="setting-switch" id="setting-auto-clear" type="checkbox" role="switch" />
+        </label>
+      </div>
     </dialog>
 
     <dialog class="lightbox" id="image-lightbox" aria-label="Task image preview">

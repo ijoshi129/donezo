@@ -113,9 +113,10 @@ svg {
   flex: 0 0 auto;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(0, 1fr) 48px 48px;
   align-items: center;
   min-height: calc(70px + env(safe-area-inset-top, 0px));
+  column-gap: 10px;
   padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 14px;
   background: rgba(20, 26, 32, 0.42);
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
@@ -794,6 +795,72 @@ input::placeholder {
   .modal-actions {
     grid-template-columns: 1fr;
   }
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--panel-soft);
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.setting-text {
+  display: grid;
+  gap: 3px;
+}
+
+.setting-label {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.setting-hint {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.setting-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 50px;
+  height: 30px;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  transition: background 180ms ease;
+}
+
+.setting-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  content: "";
+  background: var(--text);
+  border-radius: 999px;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.setting-switch:checked {
+  background: var(--green);
+}
+
+.setting-switch:checked::after {
+  background: #062015;
+  transform: translateX(20px);
+}
+
+.setting-switch:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .toast-region {
