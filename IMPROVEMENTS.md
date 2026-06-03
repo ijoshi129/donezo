@@ -7,12 +7,25 @@ A running log of changes made on top of the original app by
 Everything here respects the original philosophy: **zero external dependencies**,
 vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
-## Goals (chosen scope)
+## Goals (chosen scope) — all delivered ✅
 
-1. **Safety & polish** — guard against accidental data loss, soften surprising behavior.
-2. **Performance / storage** — stop shipping megabytes of base64 images on every fetch.
-3. **True offline PWA** — make add/complete/delete work offline and sync when back.
-4. **New features** — due dates, tags, reordering, recurring tasks.
+1. ✅ **Safety & polish** — undo-delete, opt-out for the noon auto-clear.
+2. ✅ **Performance / storage** — images stored as files, not base64 in `tasks.json`.
+3. ✅ **True offline PWA** — add/complete/edit/delete/reorder offline, auto-sync on reconnect.
+4. ✅ **New features** — due dates, tags, manual reordering, recurring tasks.
+
+| Commit | Improvement |
+| --- | --- |
+| `Add undo for task deletes` | 5s undo toast before deletes commit |
+| `Add settings panel…` | gear menu + opt-out for the noon auto-clear |
+| `Store image attachments as files…` | images on disk + URL, auto-migration |
+| `Add optional due dates…` | due dates with overdue/today/soon chips |
+| `Add tags with chip editor…` | tags + tap-to-filter |
+| `Add manual reordering…` | long-press drag to reorder |
+| `Add recurring tasks…` | daily/weekly/monthly auto-respawn |
+| `Add true offline support…` | offline reads + write outbox with replay |
+
+Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node server.js`.
 
 ## Design principles kept
 
