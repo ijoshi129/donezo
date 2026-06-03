@@ -106,6 +106,7 @@ async function routeApi(request, response, url) {
       id: crypto.randomUUID(),
       title: title.slice(0, 140),
       image: await persistImage(body.image, null),
+      dueDate: normalizeDueDate(body.dueDate),
       completed: false,
       createdAt: Date.now(),
       completedAt: null,
@@ -135,6 +136,9 @@ async function routeApi(request, response, url) {
     }
     if (Object.hasOwn(body, "image")) {
       task.image = await persistImage(body.image, task.image);
+    }
+    if (Object.hasOwn(body, "dueDate")) {
+      task.dueDate = normalizeDueDate(body.dueDate);
     }
 
     await saveStore();
@@ -250,6 +254,17 @@ async function persistImage(value, previous) {
   await fs.writeFile(path.join(IMAGE_DIR, filename), decoded.buffer);
   await deleteImageFile(previous);
   return `${IMAGE_URL_PREFIX}${filename}`;
+}
+
+function normalizeDueDate(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  return value;
 }
 
 function decodeImageDataUrl(value) {

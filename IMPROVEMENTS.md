@@ -26,6 +26,34 @@ vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Due dates (New feature)
+
+**What:** Tasks can now have an optional due date. Set it from a calendar button in the
+composer (with a removable chip showing the picked date) or from a new "Due date" field in the
+edit modal. Each task card shows a due chip with a smart relative label and color:
+
+| When | Label | Color |
+| --- | --- | --- |
+| Past | `2d overdue` / `Yesterday` | red |
+| Today | `Today` | green |
+| Tomorrow / this week | `Tomorrow` / `Fri` | cyan |
+| Later | `Jun 12` (+ year if not this year) | muted |
+
+**Why:** A task manager without due dates can't tell you what's actually urgent. This is the
+single most-requested capability for a todo app and makes the list scannable at a glance.
+
+**Design notes:**
+- Stored as a timezone-safe `"YYYY-MM-DD"` string (date-only, validated server-side incl.
+  rejecting impossible dates like `2026-13-40`). No time-of-day to keep it simple.
+- Completed tasks keep the chip but drop the urgent coloring (it's done — no longer "overdue").
+- **Sort is intentionally left unchanged for now** so it composes with the upcoming manual
+  reordering feature: due dates inform via color/label rather than reshuffling the list.
+- Composer date button uses `showPicker()` with a focus fallback.
+
+**Files:** `server.js` (`dueDate` validation on POST/PATCH), `app.js` (state, picker wiring,
+chip rendering, relative-label helpers), `index.html` (composer button + chip, card chip,
+modal field), `styles.css` (chip/field styling), `sw.js` (cache bump v6 → v7).
+
 ### Image attachments stored as files, not base64 in JSON (Performance/storage)
 
 **What:** Attached images are now written to `data/images/<uuid>.<ext>` and the task only

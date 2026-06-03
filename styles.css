@@ -84,7 +84,8 @@ svg {
 }
 
 .sr-only,
-.file-input {
+.file-input,
+.visually-hidden-date {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -236,8 +237,36 @@ input:focus-visible {
 
 .field-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px 48px;
+  grid-template-columns: minmax(0, 1fr) 48px 48px 48px;
   gap: 10px;
+}
+
+.icon-field-button {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  padding: 0;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.icon-field-button.is-active {
+  color: #062015;
+  background: var(--cyan);
+  border-color: transparent;
+}
+
+.icon-field-button:active {
+  transform: scale(0.96);
+}
+
+.icon-field-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 input {
@@ -795,6 +824,146 @@ input::placeholder {
   .modal-actions {
     grid-template-columns: 1fr;
   }
+}
+
+.due-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 7px 8px 7px 12px;
+  color: var(--cyan);
+  background: rgba(140, 232, 246, 0.14);
+  border: 1px solid rgba(140, 232, 246, 0.4);
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.due-chip svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+
+.due-chip-label {
+  white-space: nowrap;
+}
+
+.due-chip-remove {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.18);
+  border: 0;
+  border-radius: 999px;
+}
+
+.due-chip-remove svg {
+  width: 13px;
+  height: 13px;
+}
+
+.task-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 3px 9px 3px 7px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.task-due svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.task-due.is-overdue {
+  color: var(--red);
+  background: rgba(255, 125, 138, 0.16);
+}
+
+.task-due.is-today {
+  color: var(--green);
+  background: rgba(98, 217, 143, 0.16);
+}
+
+.task-due.is-soon {
+  color: var(--cyan);
+  background: rgba(140, 232, 246, 0.14);
+}
+
+.task-card.is-complete .task-due {
+  color: var(--muted-soft);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.edit-due-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.edit-due-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  color: var(--text);
+  background: var(--panel-soft);
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.edit-due-field svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.edit-due-field input[type="date"] {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+}
+
+.edit-due-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.due-clear-button {
+  flex-shrink: 0;
+  padding: 0 16px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--panel-soft);
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+}
+
+.due-clear-button:active {
+  transform: scale(0.97);
 }
 
 .setting-row {

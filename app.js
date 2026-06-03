@@ -18,6 +18,13 @@ const elements = {
   editImagePreview: document.querySelector("#edit-image-preview"),
   editImageRemove: document.querySelector("#edit-image-remove"),
   editTitle: document.querySelector("#edit-title"),
+  editDue: document.querySelector("#edit-due"),
+  editDueClear: document.querySelector("#edit-due-clear"),
+  duePicker: document.querySelector("#due-picker"),
+  taskDue: document.querySelector("#task-due"),
+  newDueChip: document.querySelector("#new-due-chip"),
+  newDueLabel: document.querySelector("#new-due-label"),
+  newDueRemove: document.querySelector("#new-due-remove"),
   empty: document.querySelector("#empty-state"),
   fab: document.querySelector("#fab"),
   form: document.querySelector("#task-form"),
@@ -50,6 +57,8 @@ let isSaving = false;
 let pendingImage = null;
 let editingTaskId = null;
 let editingImage = null;
+let pendingDueDate = null;
+let editingDueDate = null;
 let pendingDelete = null;
 const pendingDeleteIds = new Set();
 let settings = { autoClearNoon: true };
@@ -112,6 +121,22 @@ elements.newImageRemove.addEventListener("click", () => {
   renderImagePreview(elements.newImagePreview, null);
 });
 
+elements.duePicker.addEventListener("click", () => {
+  elements.composer.classList.add("is-open");
+  openDatePicker(elements.taskDue);
+});
+
+elements.taskDue.addEventListener("change", () => {
+  pendingDueDate = elements.taskDue.value || null;
+  renderComposerDue();
+});
+
+elements.newDueRemove.addEventListener("click", () => {
+  pendingDueDate = null;
+  elements.taskDue.value = "";
+  renderComposerDue();
+});
+
 elements.editImage.addEventListener("change", async () => {
   editingImage = await readImageFile(elements.editImage.files?.[0]);
   renderImagePreview(elements.editImagePreview, editingImage);
@@ -121,6 +146,15 @@ elements.editImageRemove.addEventListener("click", () => {
   editingImage = null;
   elements.editImage.value = "";
   renderImagePreview(elements.editImagePreview, null);
+});
+
+elements.editDue.addEventListener("change", () => {
+  editingDueDate = elements.editDue.value || null;
+});
+
+elements.editDueClear.addEventListener("click", () => {
+  editingDueDate = null;
+  elements.editDue.value = "";
 });
 
 elements.editForm.addEventListener("submit", (event) => {
@@ -192,10 +226,12 @@ async function addTask(title, image = null) {
   const cleanTitle = title.trim();
   if (!cleanTitle || isSaving) return;
 
+  const dueDate = pendingDueDate;
   const tempTask = {
     id: `pending-${Date.now()}`,
     title: cleanTitle,
     image,
+    dueDate,
     completed: false,
     createdAt: Date.now(),
     completedAt: null,
@@ -206,14 +242,17 @@ async function addTask(title, image = null) {
   elements.input.value = "";
   elements.imageInput.value = "";
   pendingImage = null;
+  pendingDueDate = null;
+  elements.taskDue.value = "";
   renderImagePreview(elements.newImagePreview, null);
+  renderComposerDue();
   elements.composer.classList.remove("is-open");
   render();
 
   try {
     const data = await apiRequest(API_BASE, {
       method: "POST",
-      body: { title: cleanTitle, image },
+      body: { title: cleanTitle, image, dueDate },
     });
     tasks = tasks.map((task) => (task.id === tempTask.id ? data.task : task));
     render();
@@ -222,7 +261,10 @@ async function addTask(title, image = null) {
     elements.composer.classList.add("is-open");
     elements.input.value = cleanTitle;
     pendingImage = image;
+    pendingDueDate = dueDate;
+    elements.taskDue.value = dueDate || "";
     renderImagePreview(elements.newImagePreview, image);
+    renderComposerDue();
     render();
   } finally {
     isSaving = false;
@@ -332,12 +374,13 @@ async function saveTaskEdit() {
   const id = editingTaskId;
   const cleanTitle = elements.editTitle.value.trim();
   const nextImage = editingImage;
+  const nextDueDate = editingDueDate;
   if (!id || !cleanTitle || isSaving) return;
 
   const previousTasks = tasks;
   isSaving = true;
   tasks = tasks.map((task) => (
-    task.id === id ? { ...task, title: cleanTitle, image: nextImage } : task
+    task.id === id ? { ...task, title: cleanTitle, image: nextImage, dueDate: nextDueDate } : task
   ));
   closeEditModal();
   render();
@@ -345,7 +388,7 @@ async function saveTaskEdit() {
   try {
     const data = await apiRequest(`${API_BASE}/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: { title: cleanTitle, image: nextImage },
+      body: { title: cleanTitle, image: nextImage, dueDate: nextDueDate },
     });
     tasks = tasks.map((task) => (task.id === id ? data.task : task));
     render();
@@ -399,11 +442,23 @@ function createTaskNode(task) {
   const image = imageButton.querySelector("img");
   const remove = node.querySelector(".task-delete");
 
+  const due = node.querySelector(".task-due");
+  const dueLabel = due.querySelector(".task-due-label");
+
   node.dataset.id = task.id;
   node.classList.toggle("is-complete", task.completed);
   node.classList.toggle("is-pending", task.id.startsWith("pending-"));
   node.classList.toggle("has-image", Boolean(task.image));
   title.textContent = task.title;
+
+  const dueInfo = describeDue(task.dueDate);
+  if (dueInfo) {
+    due.hidden = false;
+    due.classList.toggle("is-overdue", !task.completed && dueInfo.tone === "overdue");
+    due.classList.toggle("is-today", !task.completed && dueInfo.tone === "today");
+    due.classList.toggle("is-soon", !task.completed && dueInfo.tone === "soon");
+    dueLabel.textContent = dueInfo.label;
+  }
   check.setAttribute("aria-label", task.completed ? "Mark incomplete" : "Mark complete");
   if (task.image) {
     image.src = task.image;
@@ -469,8 +524,10 @@ function animateTaskPositions(previousRects) {
 function openEditModal(task) {
   editingTaskId = task.id;
   editingImage = task.image || null;
+  editingDueDate = task.dueDate || null;
   elements.editTitle.value = task.title;
   elements.editImage.value = "";
+  elements.editDue.value = task.dueDate || "";
   renderImagePreview(elements.editImagePreview, editingImage);
   elements.modal.showModal();
   elements.editTitle.focus();
@@ -484,7 +541,9 @@ function closeEditModal() {
 function resetEditState() {
   editingTaskId = null;
   editingImage = null;
+  editingDueDate = null;
   elements.editImage.value = "";
+  elements.editDue.value = "";
 }
 
 function openLightbox(task) {
@@ -713,6 +772,70 @@ function loadImage(src) {
     image.addEventListener("error", reject);
     image.src = src;
   });
+}
+
+function describeDue(dueDate) {
+  const due = parseLocalDate(dueDate);
+  if (!due) return null;
+
+  const today = startOfToday();
+  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+
+  if (diffDays < 0) {
+    const days = Math.abs(diffDays);
+    return { tone: "overdue", label: days === 1 ? "Yesterday" : `${days}d overdue` };
+  }
+  if (diffDays === 0) return { tone: "today", label: "Today" };
+  if (diffDays === 1) return { tone: "soon", label: "Tomorrow" };
+  if (diffDays < 7) {
+    return { tone: "soon", label: due.toLocaleDateString(undefined, { weekday: "short" }) };
+  }
+  const sameYear = due.getFullYear() === today.getFullYear();
+  return {
+    tone: "later",
+    label: due.toLocaleDateString(
+      undefined,
+      sameYear
+        ? { month: "short", day: "numeric" }
+        : { month: "short", day: "numeric", year: "numeric" },
+    ),
+  };
+}
+
+function parseLocalDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function startOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function renderComposerDue() {
+  const info = describeDue(pendingDueDate);
+  if (!info) {
+    elements.newDueChip.hidden = true;
+    elements.duePicker.classList.remove("is-active");
+    return;
+  }
+  elements.newDueLabel.textContent = info.label;
+  elements.newDueChip.hidden = false;
+  elements.duePicker.classList.add("is-active");
+}
+
+function openDatePicker(input) {
+  if (typeof input.showPicker === "function") {
+    try {
+      input.showPicker();
+      return;
+    } catch {
+      // Some browsers throw if not user-activated; fall back to focus.
+    }
+  }
+  input.focus();
 }
 
 function renderImagePreview(preview, image) {
