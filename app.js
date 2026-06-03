@@ -8,6 +8,7 @@ const DELETE_ANIMATION_MS = 260;
 const GROUP_MOVE_MS = 360;
 const MAX_IMAGE_EDGE = 1600;
 const IMAGE_QUALITY = 0.82;
+const UNDO_WINDOW_MS = 5000;
 
 const elements = {
   composer: document.querySelector("#composer"),
@@ -36,6 +37,7 @@ const elements = {
   searchPanel: document.querySelector("#search-panel"),
   searchToggle: document.querySelector("#search-toggle"),
   template: document.querySelector("#task-template"),
+  toastRegion: document.querySelector("#toast-region"),
 };
 
 let tasks = [];
@@ -44,6 +46,8 @@ let isSaving = false;
 let pendingImage = null;
 let editingTaskId = null;
 let editingImage = null;
+let pendingDelete = null;
+const pendingDeleteIds = new Set();
 
 render();
 hydrateTasks();
@@ -117,15 +121,22 @@ elements.lightbox.addEventListener("click", (event) => {
 elements.lightbox.addEventListener("close", resetLightboxState);
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
+  if (document.hidden) {
+    // Lock in a pending delete before the tab is backgrounded/closed.
+    flushPendingDelete();
+  } else {
     hydrateTasks({ quiet: true });
   }
 });
 
+window.addEventListener("pagehide", flushPendingDelete);
+
 async function hydrateTasks(options = {}) {
   try {
     const data = await apiRequest(API_BASE);
-    tasks = Array.isArray(data.tasks) ? data.tasks : [];
+    const incoming = Array.isArray(data.tasks) ? data.tasks : [];
+    // Don't let a task that's mid-undo reappear from a server refresh.
+    tasks = incoming.filter((task) => !pendingDeleteIds.has(task.id));
     render();
   } catch {
     if (!options.quiet) {
@@ -208,24 +219,71 @@ async function toggleTask(id, forceComplete, node = null) {
 }
 
 async function deleteTask(id, node) {
-  const previousTasks = tasks;
+  const task = tasks.find((item) => item.id === id);
+  if (!task) return;
+
+  // A pending-deleted task that hasn't been saved yet can just disappear.
+  if (id.startsWith("pending-")) {
+    tasks = tasks.filter((item) => item.id !== id);
+    render();
+    return;
+  }
+
+  // Any earlier undo offer is now locked in before we queue this one.
+  flushPendingDelete();
 
   if (node) {
     node.classList.add("is-removing");
     await delay(DELETE_ANIMATION_MS);
   }
 
-  tasks = tasks.filter((task) => task.id !== id);
+  pendingDeleteIds.add(id);
+  tasks = tasks.filter((item) => item.id !== id);
   render();
+
+  const timer = window.setTimeout(() => commitDelete(id), UNDO_WINDOW_MS);
+  pendingDelete = { task, timer };
+
+  showToast({
+    message: `Deleted "${task.title}"`,
+    actionLabel: "Undo",
+    duration: UNDO_WINDOW_MS,
+    onAction: () => undoDelete(id),
+  });
+}
+
+function undoDelete(id) {
+  if (!pendingDelete || pendingDelete.task.id !== id) return;
+  window.clearTimeout(pendingDelete.timer);
+  const { task } = pendingDelete;
+  pendingDelete = null;
+  pendingDeleteIds.delete(id);
+  tasks = [task, ...tasks.filter((item) => item.id !== id)];
+  render();
+}
+
+async function commitDelete(id) {
+  if (!pendingDelete || pendingDelete.task.id !== id) return;
+  const { task } = pendingDelete;
+  window.clearTimeout(pendingDelete.timer);
+  pendingDelete = null;
 
   try {
     await apiRequest(`${API_BASE}/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   } catch {
-    tasks = previousTasks;
+    // Restore on failure so the task is never silently lost.
+    tasks = [task, ...tasks.filter((item) => item.id !== id)];
     render();
+  } finally {
+    pendingDeleteIds.delete(id);
   }
+}
+
+// Commit any outstanding delete immediately (e.g. before a new delete or on exit).
+function flushPendingDelete() {
+  if (pendingDelete) commitDelete(pendingDelete.task.id);
 }
 
 async function saveTaskEdit() {
@@ -654,6 +712,57 @@ function scheduleNextNoonRefresh() {
     hydrateTasks({ quiet: true });
     scheduleNextNoonRefresh();
   }, nextNoon.getTime() - now.getTime() + 1500);
+}
+
+function showToast({ message, actionLabel, onAction, duration = UNDO_WINDOW_MS }) {
+  dismissToasts();
+
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.setAttribute("role", "status");
+
+  const text = document.createElement("span");
+  text.className = "toast-message";
+  text.textContent = message;
+  toast.append(text);
+
+  if (actionLabel && onAction) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "toast-action";
+    button.textContent = actionLabel;
+    button.addEventListener("click", () => {
+      onAction();
+      hideToast(toast);
+    });
+    toast.append(button);
+  }
+
+  const timerBar = document.createElement("div");
+  timerBar.className = "toast-timer";
+  timerBar.style.animationDuration = `${duration}ms`;
+  toast.append(timerBar);
+
+  elements.toastRegion.append(toast);
+  requestAnimationFrame(() => toast.classList.add("is-visible"));
+
+  const dismissTimer = window.setTimeout(() => hideToast(toast), duration);
+  toast.dataset.dismissTimer = String(dismissTimer);
+  return toast;
+}
+
+function hideToast(toast) {
+  if (!toast.isConnected || toast.classList.contains("is-leaving")) return;
+  window.clearTimeout(Number(toast.dataset.dismissTimer || 0));
+  toast.classList.remove("is-visible");
+  toast.classList.add("is-leaving");
+  window.setTimeout(() => toast.remove(), 220);
+}
+
+function dismissToasts() {
+  for (const toast of elements.toastRegion.querySelectorAll(".toast")) {
+    hideToast(toast);
+  }
 }
 
 function delay(ms) {
