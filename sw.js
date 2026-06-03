@@ -1,4 +1,4 @@
-const CACHE_NAME = "donezo-pwa-v10";
+const CACHE_NAME = "donezo-pwa-v11";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -31,16 +31,41 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
+
+  // Task list: prefer fresh, fall back to the last cached copy when offline.
+  if (url.pathname === "/api/tasks") {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+  // Attached images are immutable: serve from cache, populate on first fetch.
+  if (url.pathname.startsWith("/api/images/")) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+  // Other API reads (settings) pass straight through.
   if (url.pathname.startsWith("/api/")) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      });
-    })
-  );
+  // App shell and static assets.
+  event.respondWith(cacheFirst(event.request));
 });
+
+function cacheFirst(request) {
+  return caches.match(request).then((cached) => {
+    if (cached) return cached;
+    return fetch(request).then((response) => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      return response;
+    });
+  });
+}
+
+function networkFirst(request) {
+  return fetch(request)
+    .then((response) => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      return response;
+    })
+    .catch(() => caches.match(request).then((cached) => cached || Response.error()));
+}

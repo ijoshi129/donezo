@@ -26,6 +26,37 @@ vanilla JS/HTML/CSS frontend, native-Node backend, mobile-first.
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### True offline support (PWA)
+
+**What:** The app now works with no connection. You can open it offline and see your tasks, and
+**add / complete / edit / delete / reorder offline** — those changes apply instantly and are
+queued, then replayed automatically the moment you're back online.
+
+**Why:** It was already installable as a PWA, but the service worker explicitly skipped every
+`/api/` call — so offline you got a blank/error screen and every change silently failed and
+rolled back. That's the opposite of what a PWA promises. Now it's genuinely offline-first.
+
+**How it works:**
+- **Offline reads:** the service worker is network-first for `GET /api/tasks` (caching the last
+  good response) and cache-first for `/api/images/*`. The app also mirrors the task list to
+  `localStorage` on every render, so a cold start with no connection paints instantly.
+- **Offline writes — an outbox:** mutations are optimistic already; when a request fails because
+  you're offline, the operation is appended to a persisted `localStorage` outbox instead of
+  rolling back. On `online` (and on tab focus / launch) the queue replays in order.
+- **Temp-id reconciliation:** a task created offline has a temporary id. When its create finally
+  syncs and the server assigns a real id, every still-queued op that referenced the temp id is
+  rewritten — so an offline *create → complete → reorder* chain all lands on the right task.
+  Deleting an unsynced task also drops its queued create so it never resurrects.
+- While the outbox is non-empty, a background refresh won't overwrite your unsynced local state.
+
+**Verified** with Chrome's offline emulation: went offline, added + completed tasks (server
+untouched, outbox = `[create, patch]`), reconnected → the new task got a real server id, the
+completion persisted, and the queue drained to empty. Cold-loading offline still rendered the
+full list with no error.
+
+**Files:** `sw.js` (network-first tasks, cache-first images, cache bump v10 → v11),
+`app.js` (outbox, persistence, sync/replay, offline-aware error handling across every mutation).
+
 ### Recurring tasks (New feature)
 
 **What:** A task can repeat **Daily / Weekly / Monthly** (set via a "Repeat" dropdown in the edit

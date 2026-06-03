@@ -70,12 +70,19 @@ let editingRecurrence = "none";
 let pendingDelete = null;
 const pendingDeleteIds = new Set();
 let settings = { autoClearNoon: true };
+let outbox = [];
+let isSyncing = false;
 
+loadPersisted();
 render();
-hydrateTasks();
+bootSync();
 loadSettings();
 scheduleNextNoonRefresh();
 registerServiceWorker();
+
+window.addEventListener("online", () => {
+  syncOutbox().then(() => hydrateTasks({ quiet: true }));
+});
 
 elements.form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -209,21 +216,23 @@ document.addEventListener("visibilitychange", () => {
     // Lock in a pending delete before the tab is backgrounded/closed.
     flushPendingDelete();
   } else {
-    hydrateTasks({ quiet: true });
+    syncOutbox().then(() => hydrateTasks({ quiet: true }));
   }
 });
 
 window.addEventListener("pagehide", flushPendingDelete);
 
 async function hydrateTasks(options = {}) {
+  // Local edits not yet synced are authoritative — don't let the server clobber them.
+  if (outbox.length) return;
   try {
     const data = await apiRequest(API_BASE);
     const incoming = Array.isArray(data.tasks) ? data.tasks : [];
     // Don't let a task that's mid-undo reappear from a server refresh.
     tasks = incoming.filter((task) => !pendingDeleteIds.has(task.id));
     render();
-  } catch {
-    if (!options.quiet) {
+  } catch (error) {
+    if (!options.quiet && !error.offline) {
       elements.empty.textContent = "Tasks could not be loaded.";
       elements.empty.classList.add("is-visible");
     }
@@ -285,16 +294,21 @@ async function addTask(title, image = null) {
     });
     tasks = tasks.map((task) => (task.id === tempTask.id ? data.task : task));
     render();
-  } catch {
-    tasks = tasks.filter((task) => task.id !== tempTask.id);
-    elements.composer.classList.add("is-open");
-    elements.input.value = cleanTitle;
-    pendingImage = image;
-    pendingDueDate = dueDate;
-    elements.taskDue.value = dueDate || "";
-    renderImagePreview(elements.newImagePreview, image);
-    renderComposerDue();
-    render();
+  } catch (error) {
+    if (error.offline) {
+      // Keep the optimistic task and replay the create when back online.
+      enqueue({ kind: "create", tempId: tempTask.id, body: { title: cleanTitle, image, dueDate } });
+    } else {
+      tasks = tasks.filter((task) => task.id !== tempTask.id);
+      elements.composer.classList.add("is-open");
+      elements.input.value = cleanTitle;
+      pendingImage = image;
+      pendingDueDate = dueDate;
+      elements.taskDue.value = dueDate || "";
+      renderImagePreview(elements.newImagePreview, image);
+      renderComposerDue();
+      render();
+    }
   } finally {
     isSaving = false;
   }
@@ -329,9 +343,13 @@ async function toggleTask(id, forceComplete, node = null) {
       tasks = [data.spawned, ...tasks];
     }
     render();
-  } catch {
-    tasks = previousTasks;
-    render();
+  } catch (error) {
+    if (error.offline) {
+      enqueue({ kind: "patch", id, body: { completed } });
+    } else {
+      tasks = previousTasks;
+      render();
+    }
   }
 }
 
@@ -339,9 +357,12 @@ async function deleteTask(id, node) {
   const task = tasks.find((item) => item.id === id);
   if (!task) return;
 
-  // A pending-deleted task that hasn't been saved yet can just disappear.
+  // A pending-deleted task that hasn't been saved yet can just disappear —
+  // and drop any queued create/patch for it so it never resurrects on sync.
   if (id.startsWith("pending-")) {
     tasks = tasks.filter((item) => item.id !== id);
+    outbox = outbox.filter((op) => op.tempId !== id && op.id !== id);
+    persistState();
     render();
     return;
   }
@@ -389,10 +410,14 @@ async function commitDelete(id) {
     await apiRequest(`${API_BASE}/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
-  } catch {
-    // Restore on failure so the task is never silently lost.
-    tasks = [task, ...tasks.filter((item) => item.id !== id)];
-    render();
+  } catch (error) {
+    if (error.offline) {
+      enqueue({ kind: "delete", id });
+    } else {
+      // Restore on failure so the task is never silently lost.
+      tasks = [task, ...tasks.filter((item) => item.id !== id)];
+      render();
+    }
   } finally {
     pendingDeleteIds.delete(id);
   }
@@ -434,9 +459,17 @@ async function saveTaskEdit() {
     });
     tasks = tasks.map((task) => (task.id === id ? data.task : task));
     render();
-  } catch {
-    tasks = previousTasks;
-    render();
+  } catch (error) {
+    if (error.offline) {
+      enqueue({
+        kind: "patch",
+        id,
+        body: { title: cleanTitle, image: nextImage, dueDate: nextDueDate, tags: nextTags, recurrence: nextRecurrence },
+      });
+    } else {
+      tasks = previousTasks;
+      render();
+    }
   } finally {
     isSaving = false;
   }
@@ -472,6 +505,8 @@ function render(options = {}) {
   elements.progress.style.width = total ? `${Math.round((completed / total) * 100)}%` : "0";
   elements.empty.classList.toggle("is-visible", visibleTasks.length === 0);
   elements.empty.textContent = filter ? "No matching tasks." : "Nothing due.";
+
+  persistState();
 }
 
 function createTaskNode(task) {
@@ -888,9 +923,14 @@ async function persistReorder(orderedIds) {
     if (Array.isArray(data.tasks)) {
       // Keep server-authoritative order without re-animating; UI already matches.
       tasks = data.tasks.filter((task) => !pendingDeleteIds.has(task.id));
+      persistState();
     }
-  } catch {
-    hydrateTasks({ quiet: true });
+  } catch (error) {
+    if (error.offline) {
+      enqueue({ kind: "reorder", ids: orderedIds });
+    } else {
+      hydrateTasks({ quiet: true });
+    }
   }
 }
 
@@ -1098,14 +1138,111 @@ function renderImagePreview(preview, image) {
   preview.hidden = false;
 }
 
+function loadPersisted() {
+  try {
+    const savedTasks = JSON.parse(localStorage.getItem("donezo.tasks") || "null");
+    if (Array.isArray(savedTasks)) tasks = savedTasks;
+    const savedOutbox = JSON.parse(localStorage.getItem("donezo.outbox") || "null");
+    if (Array.isArray(savedOutbox)) outbox = savedOutbox;
+  } catch {
+    // Corrupt or unavailable storage — start clean.
+  }
+}
+
+function persistState() {
+  try {
+    localStorage.setItem("donezo.tasks", JSON.stringify(tasks));
+    localStorage.setItem("donezo.outbox", JSON.stringify(outbox));
+  } catch {
+    // Quota/availability errors are non-fatal; the app still works online.
+  }
+}
+
+async function bootSync() {
+  await syncOutbox();
+  // If we already have local tasks, a failed refresh should stay silent.
+  await hydrateTasks({ quiet: tasks.length > 0 });
+}
+
+function enqueue(op) {
+  outbox.push(op);
+  persistState();
+  syncOutbox();
+}
+
+// Replay queued mutations in order. Stops at the first offline failure (keeping
+// the queue) and drops ops that fail for other reasons (e.g. already gone).
+async function syncOutbox() {
+  if (isSyncing || !outbox.length) return;
+  isSyncing = true;
+  try {
+    while (outbox.length) {
+      const op = outbox[0];
+      try {
+        await applyOp(op);
+      } catch (error) {
+        if (error.offline) break;
+        // Non-offline failure: give up on this op so the queue can drain.
+      }
+      outbox.shift();
+      persistState();
+    }
+  } finally {
+    isSyncing = false;
+    render();
+  }
+}
+
+async function applyOp(op) {
+  if (op.kind === "create") {
+    const data = await apiRequest(API_BASE, { method: "POST", body: op.body });
+    const realId = data.task.id;
+    tasks = tasks.map((task) => (task.id === op.tempId ? data.task : task));
+    // Rewrite later queued ops that referenced this not-yet-synced id.
+    for (const other of outbox) {
+      if (other.id === op.tempId) other.id = realId;
+      if (Array.isArray(other.ids)) {
+        other.ids = other.ids.map((value) => (value === op.tempId ? realId : value));
+      }
+    }
+    return;
+  }
+  if (op.kind === "patch") {
+    const data = await apiRequest(`${API_BASE}/${encodeURIComponent(op.id)}`, {
+      method: "PATCH",
+      body: op.body,
+    });
+    tasks = tasks.map((task) => (task.id === op.id ? data.task : task));
+    if (data.spawned && !tasks.some((task) => task.id === data.spawned.id)) {
+      tasks = [data.spawned, ...tasks];
+    }
+    return;
+  }
+  if (op.kind === "delete") {
+    await apiRequest(`${API_BASE}/${encodeURIComponent(op.id)}`, { method: "DELETE" });
+    return;
+  }
+  if (op.kind === "reorder") {
+    await apiRequest(`${API_BASE}/reorder`, { method: "POST", body: { ids: op.ids } });
+  }
+}
+
 async function apiRequest(url, options = {}) {
-  const response = await fetch(url, {
-    method: options.method || "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: options.method || "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch {
+    // fetch only throws on a network failure — treat as offline.
+    const error = new Error("offline");
+    error.offline = true;
+    throw error;
+  }
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
