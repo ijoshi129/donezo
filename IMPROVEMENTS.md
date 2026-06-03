@@ -39,6 +39,41 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### UI revamp — "Daily Ledger" risograph aesthetic
+
+**What:** A full visual redesign away from the dark glassmorphic look toward a warm, printed
+**risograph / letterpress editorial** system — like a daily task ledger printed on cream stock.
+
+**The look:**
+- **Warm paper** background (`#ecdfc6`) with a real grain texture (SVG fractal-noise overlay,
+  multiply blend) and a soft vignette. Light theme.
+- **Ink borders + hard offset shadows** (no blur) on every card/button/chip/modal — a stamped,
+  printed-sticker feel instead of glass.
+- **Fluorescent vermilion** (`#df3f29`) as the hero accent (FAB, primary buttons, the "left"
+  count, the progress ruler, overdue stamps, focus rings), with **riso blue** for tags, **riso
+  green** for done/today, and **amber** for soon.
+- **Type:** an italic **Fraunces** serif wordmark + modal titles, **Hanken Grotesk** for body,
+  and **DM Mono** for all the "stamped" labels (counts, dates, tags, divider, hints).
+- Signature details: the progress bar is a **printed ruler** with tick marks; due dates/repeat
+  render as mono **ticket-stub stamps**; the checkbox is a square **stamp** that fills green
+  with a hand-stamped ✓; the wordmark sits over a vermilion rule.
+- A one-time staggered **load-in** (wordmark → summary → list) and tactile press states (buttons
+  shift into their shadow). Honors `prefers-reduced-motion`.
+
+**Why:** The brief was to get away from the generic dark-glass "AI dashboard" aesthetic and make
+it distinctive. A printed-ledger direction fits a personal, tactile, swipe-first task app and is
+memorable.
+
+**Engineering:** This is a pure presentation change — every JS hook (ids, state classes like
+`show-complete`/`is-lifting`/`is-removing`, the swipe-surface transform contract, `--swipe-commit-ms`)
+is preserved, so all gestures/animations still work. Verified the swipe reveals, completed state,
+composer, edit/settings modals, and that there are **no JS errors** and the date-picker fix still
+holds. Fonts load from Google Fonts (cached by the service worker after first load; falls back to
+Georgia/system if offline before caching).
+
+**Files:** `styles.css` (complete rewrite), `index.html` (font links + theme color),
+`manifest.webmanifest` (PWA colors), `sw.js` (cache bump v14 → v15).
+
 ### Bug fix: date picker not dismissing on selection
 
 **What:** Picking a date in the composer left the native date-picker calendar hanging around
