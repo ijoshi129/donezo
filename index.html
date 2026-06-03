@@ -35,13 +35,15 @@
             <label class="sr-only" for="task-input">Task name</label>
             <div class="field-row">
               <input id="task-input" name="task" type="text" maxlength="140" placeholder="New task" />
-              <button class="icon-field-button" id="due-picker" type="button" aria-label="Set due date">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="3" y="4.5" width="18" height="16" rx="2" />
-                  <path d="M3 9h18M8 3v3M16 3v3" />
-                </svg>
-              </button>
-              <input class="visually-hidden-date" id="task-due" type="date" aria-label="Due date" />
+              <span class="due-field">
+                <span class="icon-field-button" id="due-picker" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="4.5" width="18" height="16" rx="2" />
+                    <path d="M3 9h18M8 3v3M16 3v3" />
+                  </svg>
+                </span>
+                <input class="due-date-overlay" id="task-due" type="date" aria-label="Set due date" />
+              </span>
               <label class="image-picker" for="task-image" aria-label="Attach image">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2" />

@@ -179,11 +179,6 @@ elements.newImageRemove.addEventListener("click", () => {
   renderImagePreview(elements.newImagePreview, null);
 });
 
-elements.duePicker.addEventListener("click", () => {
-  elements.composer.classList.add("is-open");
-  openDatePicker(elements.taskDue);
-});
-
 elements.taskDue.addEventListener("change", () => {
   pendingDueDate = elements.taskDue.value || null;
   renderComposerDue();
@@ -1161,18 +1156,6 @@ function renderComposerDue() {
   elements.newDueLabel.textContent = info.label;
   elements.newDueChip.hidden = false;
   elements.duePicker.classList.add("is-active");
-}
-
-function openDatePicker(input) {
-  if (typeof input.showPicker === "function") {
-    try {
-      input.showPicker();
-      return;
-    } catch {
-      // Some browsers throw if not user-activated; fall back to focus.
-    }
-  }
-  input.focus();
 }
 
 function renderImagePreview(preview, image) {

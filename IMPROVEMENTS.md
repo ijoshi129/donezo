@@ -39,6 +39,25 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Bug fix: date picker not dismissing on selection
+
+**What:** Picking a date in the composer left the native date-picker calendar hanging around
+instead of closing.
+
+**Why:** The composer's date input was visually hidden as a `1px` clipped box and the picker was
+summoned with `showPicker()`. A native picker anchored to a degenerate/clipped element dismisses
+unreliably across platforms.
+
+**Fix:** Replaced it with the standard robust pattern — a **full-size, transparent** `<input
+type="date">` overlaid on the calendar icon, with its `::-webkit-calendar-picker-indicator`
+stretched to fill it. A tap anywhere on the icon opens the native picker *anchored to a real
+48×48 box*, so selecting a date closes it natively. No more `showPicker()` hack. Verified the
+overlay covers the icon, taps land on it, and selection still produces the date chip.
+
+**Files:** `index.html` (overlay markup), `styles.css` (`.due-field`/`.due-date-overlay`,
+removed dead `.visually-hidden-date`), `app.js` (dropped the `showPicker` handler), `sw.js`
+(cache bump v13 → v14).
+
 ### Bug fixes: panel dismissal
 
 **What:** The add-task composer now closes when you click outside it or press Escape, and its
