@@ -40,7 +40,9 @@ const DEFAULT_SETTINGS = {
 };
 
 const PUSH_DIGEST_HOUR = Math.min(23, Math.max(0, Number(process.env.PUSH_DIGEST_HOUR) || 8));
-const PUSH_SUBJECT = process.env.PUSH_SUBJECT || "mailto:donezo@localhost";
+// VAPID "sub" must be a valid mailto:/https: contact — Apple rejects fake
+// domains like localhost. Override with PUSH_SUBJECT (e.g. your email).
+const PUSH_SUBJECT = process.env.PUSH_SUBJECT || "mailto:donezo@donezo.app";
 
 let store = {
   lastNoonCleanup: null,
