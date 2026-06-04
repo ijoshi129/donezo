@@ -27,7 +27,9 @@ const MIME_TYPES = {
 };
 
 const DEFAULT_SETTINGS = {
-  autoClearNoon: true,
+  // Completed tasks are kept in a Completed section by default; the daily
+  // noon wipe is opt-in.
+  autoClearNoon: false,
 };
 
 let store = {
@@ -91,6 +93,17 @@ async function routeApi(request, response, url) {
     }
     await saveStore();
     sendJson(response, 200, { settings: store.settings });
+    return;
+  }
+
+  if (url.pathname === "/api/tasks/clear-completed" && request.method === "POST") {
+    const cleared = store.tasks.filter((task) => task.completed);
+    store.tasks = store.tasks.filter((task) => !task.completed);
+    await saveStore();
+    for (const task of cleared) {
+      await deleteImageFile(task.image);
+    }
+    sendJson(response, 200, { tasks: sortTasks(store.tasks) });
     return;
   }
 

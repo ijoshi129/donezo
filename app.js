@@ -68,8 +68,9 @@ let editingDueDate = null;
 let editingTags = [];
 let editingRecurrence = "none";
 let pendingDelete = null;
+let pendingClear = null;
 const pendingDeleteIds = new Set();
-let settings = { autoClearNoon: true };
+let settings = { autoClearNoon: false };
 let outbox = [];
 let isSyncing = false;
 
@@ -251,14 +252,18 @@ elements.lightbox.addEventListener("close", resetLightboxState);
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
-    // Lock in a pending delete before the tab is backgrounded/closed.
+    // Lock in any pending delete/clear before the tab is backgrounded/closed.
     flushPendingDelete();
+    flushPendingClear();
   } else {
     syncOutbox().then(() => hydrateTasks({ quiet: true }));
   }
 });
 
-window.addEventListener("pagehide", flushPendingDelete);
+window.addEventListener("pagehide", () => {
+  flushPendingDelete();
+  flushPendingClear();
+});
 
 async function hydrateTasks(options = {}) {
   // Local edits not yet synced are authoritative — don't let the server clobber them.
@@ -466,6 +471,65 @@ function flushPendingDelete() {
   if (pendingDelete) commitDelete(pendingDelete.task.id);
 }
 
+// Clear all completed tasks at once, with the same 5s undo grace as a delete.
+function clearCompleted() {
+  const cleared = tasks.filter((task) => task.completed);
+  if (!cleared.length) return;
+
+  flushPendingDelete();
+  flushPendingClear();
+
+  const ids = cleared.map((task) => task.id);
+  ids.forEach((id) => pendingDeleteIds.add(id));
+  tasks = tasks.filter((task) => !task.completed);
+  render();
+
+  const timer = window.setTimeout(() => commitClear(ids), UNDO_WINDOW_MS);
+  pendingClear = { tasks: cleared, ids, timer };
+
+  showToast({
+    message: `Cleared ${cleared.length} completed`,
+    actionLabel: "Undo",
+    duration: UNDO_WINDOW_MS,
+    onAction: undoClear,
+  });
+}
+
+function undoClear() {
+  if (!pendingClear) return;
+  window.clearTimeout(pendingClear.timer);
+  const { tasks: restored, ids } = pendingClear;
+  pendingClear = null;
+  ids.forEach((id) => pendingDeleteIds.delete(id));
+  tasks = [...tasks, ...restored];
+  render();
+}
+
+async function commitClear(ids) {
+  if (!pendingClear) return;
+  const { tasks: cleared } = pendingClear;
+  window.clearTimeout(pendingClear.timer);
+  pendingClear = null;
+
+  try {
+    await apiRequest(`${API_BASE}/clear-completed`, { method: "POST" });
+  } catch (error) {
+    if (error.offline) {
+      // Replay as individual deletes when the connection returns.
+      for (const task of cleared) enqueue({ kind: "delete", id: task.id });
+    } else {
+      tasks = [...tasks, ...cleared];
+      render();
+    }
+  } finally {
+    ids.forEach((id) => pendingDeleteIds.delete(id));
+  }
+}
+
+function flushPendingClear() {
+  if (pendingClear) commitClear(pendingClear.ids);
+}
+
 async function saveTaskEdit() {
   const id = editingTaskId;
   const cleanTitle = elements.editTitle.value.trim();
@@ -530,8 +594,8 @@ function render(options = {}) {
   for (const task of openTasks) {
     elements.list.append(createTaskNode(task));
   }
-  if (openTasks.length && doneTasks.length) {
-    elements.list.append(createTaskDivider());
+  if (doneTasks.length) {
+    elements.list.append(createCompletedHeader(doneTasks.length));
   }
   for (const task of doneTasks) {
     elements.list.append(createTaskNode(task));
@@ -615,12 +679,23 @@ function createTaskNode(task) {
   return node;
 }
 
-function createTaskDivider() {
-  const divider = document.createElement("div");
-  divider.className = "task-divider";
-  divider.setAttribute("role", "separator");
-  divider.innerHTML = "<span>Done</span>";
-  return divider;
+function createCompletedHeader(count) {
+  const header = document.createElement("div");
+  header.className = "completed-header";
+  header.setAttribute("role", "separator");
+
+  const label = document.createElement("span");
+  label.className = "completed-label";
+  label.textContent = `Completed · ${count}`;
+
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "completed-clear";
+  clear.textContent = "Clear";
+  clear.addEventListener("click", clearCompleted);
+
+  header.append(label, clear);
+  return header;
 }
 
 function getTaskRects() {

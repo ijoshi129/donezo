@@ -39,6 +39,29 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Keep completed tasks in a Completed section (don't auto-remove)
+
+**What:** Finished tasks now persist in a dedicated **Completed** section at the bottom of the
+list (`COMPLETED · N` header with a dashed rule) instead of being wiped. The old "clear completed
+at noon" behavior is **off by default** now. The section header has a **Clear** button to remove
+them on demand — and that clear is **undoable** (5-second toast), just like a single delete.
+
+**Why:** The daily noon wipe surprised people by deleting completed work. Keeping a Completed
+section is the expected behavior for a task app and lets you review what you got done. Clearing
+is now an explicit, reversible choice rather than an automatic one.
+
+**Details:**
+- `DEFAULT_SETTINGS.autoClearNoon` flipped to `false`; the noon job still exists but is opt-in
+  via Settings, so anyone who liked the daily reset can turn it back on.
+- The Completed header shows whenever there are completed tasks (even with no open ones).
+- New `POST /api/tasks/clear-completed` removes all completed tasks (and their image files) and
+  returns the remainder. The client clears optimistically, holds a 5s undo window before calling
+  it, restores on Undo, and — offline — replays as individual deletes through the outbox.
+
+**Files:** `server.js` (default flip + `clear-completed` endpoint), `app.js` (Completed header +
+undoable batch clear), `styles.css` (`.completed-header`/`.completed-clear`), `sw.js`
+(cache bump v15 → v16).
+
 ### UI revamp — "Daily Ledger" risograph aesthetic
 
 **What:** A full visual redesign away from the dark glassmorphic look toward a warm, printed
