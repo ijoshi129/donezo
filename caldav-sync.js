@@ -63,16 +63,18 @@ function calendarHomeHref(xml) {
 function findCalendarHref(xml, listName) {
   const wanted = String(listName).trim().toLowerCase();
   const names = [];
+  const todoNames = [];
   for (const block of extractResponses(xml)) {
     const href = firstHref(block);
     const name = (innerOf(block, "displayname") || "").trim();
     const supportsTodo = /comp\s+name="VTODO"/i.test(block);
     if (name) names.push(name);
+    if (name && supportsTodo) todoNames.push(name);
     if (href && supportsTodo && name.toLowerCase() === wanted) {
-      return { href, names };
+      return { href, names, todoNames };
     }
   }
-  return { href: null, names };
+  return { href: null, names, todoNames };
 }
 
 function unescapeXml(s) {
@@ -232,10 +234,11 @@ function startCaldavSync({ store, saveStore, importTask, log = console.log }) {
     const homeUrl = new URL(hHref, principalUrl).href;
 
     const list = await dav("PROPFIND", homeUrl, { depth: 1, body: LIST_BODY });
-    const { href, names } = findCalendarHref(list.text, listName);
+    const { href, todoNames } = findCalendarHref(list.text, listName);
     if (!href) {
       throw new Error(
-        `Reminders list "${listName}" not found. Lists seen: ${names.join(", ") || "(none)"}`,
+        `Reminders list "${listName}" not found. Reminders (VTODO) lists visible over CalDAV: ` +
+          `${todoNames.join(", ") || "(none — iCloud is not exposing any reminders lists)"}`,
       );
     }
     return new URL(href, homeUrl).href;
