@@ -67,8 +67,14 @@ detection). Verified the poller stays off without env vars, engages when configu
 gracefully on bad credentials. The live iCloud round-trip can only be exercised with a real
 account + app password.
 
-**Files:** `caldav-sync.js` (new), `server.js` (wire-in + `addImportedTask` + `importedUids`
-store field), `Dockerfile` (ship the new file), `compose.yaml` (documented env vars).
+**Configuring it:** the server now reads a local **`.env`** file (a tiny built-in loader — still
+zero dependencies) so you just paste your details into `.env` and run `node server.js`. `.env` is
+git-ignored; `.env.example` is the committed template. Real environment variables still take
+precedence (so Docker `environment:`/`env_file:` works too).
+
+**Files:** `caldav-sync.js` (new), `server.js` (wire-in + `.env` loader + `addImportedTask` +
+`importedUids` store field), `.env.example` (new), `.gitignore` (ignore `.env`),
+`Dockerfile` (ship the new file), `compose.yaml` (documented env vars).
 
 ### Keep completed tasks in a Completed section (don't auto-remove)
 

@@ -11,7 +11,8 @@ coverage/
 # Local task data can contain user content and attached images.
 data/
 
-# Local launcher — contains your iCloud app-specific password. Never commit.
+# Local config — contains your iCloud app-specific password. Never commit.
+.env
 run.sh
 donezo.env
 

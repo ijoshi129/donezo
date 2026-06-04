@@ -4,6 +4,10 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { startCaldavSync } = require("./caldav-sync");
 
+// Load a local .env file (KEY=value lines) before reading any config. Real
+// environment variables always win, and a missing .env is fine.
+loadLocalEnv();
+
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, "data");
@@ -40,6 +44,31 @@ let store = {
   tasks: [],
 };
 let writeQueue = Promise.resolve();
+
+function loadLocalEnv() {
+  let raw;
+  try {
+    raw = require("node:fs").readFileSync(path.join(__dirname, ".env"), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return; // no .env file — that's fine
+    throw error;
+  }
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      value.length >= 2 &&
+      ((value[0] === '"' && value.at(-1) === '"') || (value[0] === "'" && value.at(-1) === "'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (key && !(key in process.env)) process.env[key] = value;
+  }
+}
 
 start().catch((error) => {
   console.error(error);
