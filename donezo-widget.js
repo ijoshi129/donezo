@@ -38,16 +38,31 @@ widget.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);
 try {
   const data = await new Request(`${BASE_URL}/api/tasks`).loadJSON();
   const tasks = Array.isArray(data.tasks) ? data.tasks : [];
-  const open = tasks.filter((t) => !t.completed).sort(byUpcoming);
+  const open = tasks.filter((t) => !t.completed);
+  const todayKey = ymdLocal(new Date());
 
-  header(open.length);
+  // Due today (or overdue). If nothing's due, fall back to the next upcoming.
+  const dueNow = open.filter((t) => t.dueDate && t.dueDate <= todayKey).sort(byDue);
+  let toShow;
+  let badge;
+  if (dueNow.length) {
+    toShow = dueNow;
+    badge = { text: `${dueNow.length} due`, color: FLAG };
+  } else {
+    const upcoming = open.filter((t) => t.dueDate && t.dueDate > todayKey).sort(byDue);
+    const nextDate = upcoming.length ? upcoming[0].dueDate : null;
+    toShow = nextDate ? upcoming.filter((t) => t.dueDate === nextDate) : [];
+    badge = toShow.length ? { text: "next up", color: INK2 } : null;
+  }
+
+  header(badge);
   widget.addSpacer(8);
 
-  if (open.length === 0) {
-    muted("Nothing due.");
+  if (toShow.length === 0) {
+    muted(open.length ? `Nothing due · ${open.length} open` : "All clear.");
   } else {
-    for (const t of open.slice(0, maxTasks)) taskRow(t);
-    const extra = open.length - maxTasks;
+    for (const t of toShow.slice(0, maxTasks)) taskRow(t);
+    const extra = toShow.length - maxTasks;
     if (extra > 0) {
       widget.addSpacer(3);
       muted(`+${extra} more`);
@@ -66,7 +81,7 @@ else widget.presentMedium();
 Script.complete();
 
 // ── builders ─────────────────────────────────────────────
-function header(count) {
+function header(badge) {
   const row = widget.addStack();
   row.centerAlignContent();
 
@@ -83,10 +98,10 @@ function header(count) {
 
   row.addSpacer();
 
-  if (count !== null) {
-    const c = row.addText(`${count} left`);
+  if (badge) {
+    const c = row.addText(badge.text);
     c.font = new Font("Menlo", 11);
-    c.textColor = FLAG;
+    c.textColor = badge.color;
   }
 
   widget.addSpacer(5);
@@ -128,13 +143,13 @@ function muted(text) {
 }
 
 // ── ordering + dates ─────────────────────────────────────
-function byUpcoming(a, b) {
-  const da = a.dueDate || null;
-  const db = b.dueDate || null;
-  if (da && db) return da < db ? -1 : da > db ? 1 : 0;
-  if (da) return -1; // dated tasks come before undated
-  if (db) return 1;
-  return (b.createdAt || 0) - (a.createdAt || 0); // newest undated first
+function byDue(a, b) {
+  return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0;
+}
+
+function ymdLocal(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 function describeDue(dueDate) {
