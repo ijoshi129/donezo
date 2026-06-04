@@ -64,6 +64,25 @@ function finishScript(listName, ids, mode) {
   ].join("\n");
 }
 
+// Parse the tab-separated "id<TAB>title<TAB>due" lines from readScript.
+function parseReminderLines(out) {
+  const items = [];
+  for (const line of out.split("\n")) {
+    const row = line.replace(/\r$/, "");
+    if (!row) continue;
+    const tab = row.indexOf("\t");
+    if (tab === -1) continue;
+    const id = row.slice(0, tab);
+    const rest = row.slice(tab + 1);
+    const tab2 = rest.indexOf("\t");
+    const title = (tab2 === -1 ? rest : rest.slice(0, tab2)).trim();
+    const dueDate = (tab2 === -1 ? "" : rest.slice(tab2 + 1).trim()) || null;
+    if (!title) continue;
+    items.push({ id, title, dueDate });
+  }
+  return items;
+}
+
 function runOsascript(script) {
   return new Promise((resolve, reject) => {
     execFile(
@@ -99,20 +118,11 @@ function startMacRemindersSync({ store, saveStore, importTask, log = console.log
   async function pollOnce() {
     const out = await runOsascript(readScript(listName));
     const imported = [];
-    for (const line of out.split("\n")) {
-      const row = line.replace(/\r$/, "");
-      if (!row) continue;
-      const tab = row.indexOf("\t");
-      if (tab === -1) continue;
-      const id = row.slice(0, tab);
-      const rest = row.slice(tab + 1);
-      const tab2 = rest.indexOf("\t");
-      const title = (tab2 === -1 ? rest : rest.slice(0, tab2)).trim();
-      const dueDate = tab2 === -1 ? "" : rest.slice(tab2 + 1).trim();
-      if (!title || seen.has(id)) continue;
-      importTask({ title, dueDate: dueDate || null });
-      seen.add(id);
-      imported.push(id);
+    for (const item of parseReminderLines(out)) {
+      if (seen.has(item.id)) continue;
+      importTask({ title: item.title, dueDate: item.dueDate });
+      seen.add(item.id);
+      imported.push(item.id);
     }
 
     if (imported.length) {
@@ -150,4 +160,10 @@ function startMacRemindersSync({ store, saveStore, importTask, log = console.log
   };
 }
 
-module.exports = { startMacRemindersSync, readScript, finishScript };
+module.exports = {
+  startMacRemindersSync,
+  readScript,
+  finishScript,
+  runOsascript,
+  parseReminderLines,
+};

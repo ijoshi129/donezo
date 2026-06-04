@@ -39,6 +39,28 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Mac Reminders bridge — instant Siri capture when Donezo runs elsewhere (Docker)
+
+**What:** A standalone script (`mac-reminders-bridge.js`) you run **on a Mac** that reads the
+Reminders list and **POSTs new reminders over HTTP to a remote Donezo server** — for when Donezo
+runs in Docker on a Linux box (where the in-process watcher can't see Reminders).
+
+**Why:** The in-server watcher only works when Donezo runs natively on macOS. Moving Donezo to a
+Linux/Docker host breaks it. This keeps the instant, hands-off capture by splitting the job: the
+always-on Mac does the reading (the only place that can), the Docker server just receives the posts.
+
+**How it works:**
+- Same AppleScript read/finish logic as the watcher (shared via `mac-reminders-sync.js`), but
+  instead of writing to the local store it `POST`s `{title, dueDate}` to `DONEZO_URL/api/tasks`.
+- **Only marks a reminder complete after the server confirms** the create — so if the server is
+  down nothing is lost; it retries next poll.
+- Config: `DONEZO_URL`, `MAC_REMINDERS_LIST`, `MAC_REMINDERS_POLL_SECONDS`, `MAC_REMINDERS_AFTER`
+  (reads them from env or a local `.env`). Verified end-to-end: reminder → POST to a remote
+  server → due date carried over → marked complete → no duplicates.
+
+**Files:** `mac-reminders-bridge.js` (new), `mac-reminders-sync.js` (extracted shared
+`parseReminderLines`/`runOsascript`), `.env.example` (documented).
+
 ### macOS Reminders watcher — instant Siri capture (the one that actually works)
 
 **What:** When Donezo runs on a Mac, it watches a Reminders list via AppleScript and imports new
