@@ -70,9 +70,16 @@ function header(count) {
   const row = widget.addStack();
   row.centerAlignContent();
 
-  const title = row.addText("Donezo");
-  title.font = new Font("Georgia-BoldItalic", 18);
+  const now = new Date();
+  const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dateLabel = `${weekdays[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+
+  const title = row.addText(dateLabel);
+  title.font = new Font("Georgia-BoldItalic", 17);
   title.textColor = INK;
+  title.lineLimit = 1;
+  title.minimumScaleFactor = 0.6;
 
   row.addSpacer();
 
