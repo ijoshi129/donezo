@@ -1,5 +1,8 @@
 .git
 .gitignore
+.env
+.env.example
+data
 node_modules
 npm-debug.log*
 .DS_Store

@@ -1,5 +1,8 @@
 services:
   donezo:
+    # Build from the repo (run: docker compose up -d --build). The image tag is
+    # also pushable to a registry if you prefer pulling instead of building.
+    build: .
     image: 192.168.1.83:5000/donezo:latest
     container_name: donezo
     restart: unless-stopped

@@ -5,9 +5,10 @@ WORKDIR /app
 
 COPY index.html styles.css app.js manifest.webmanifest sw.js server.js caldav-sync.js mac-reminders-sync.js ./
 COPY icons ./icons
-COPY data ./data
 
+# data lives in a mounted volume; create it empty rather than baking in local tasks
 RUN addgroup -S donezo && adduser -S donezo -G donezo \
+  && mkdir -p /app/data \
   && chown -R donezo:donezo /app
 
 USER donezo
