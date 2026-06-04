@@ -39,6 +39,31 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### macOS Reminders watcher — instant Siri capture (the one that actually works)
+
+**What:** When Donezo runs on a Mac, it watches a Reminders list via AppleScript and imports new
+reminders into Donezo every ~15s — so "Hey Siri, remind me to X" shows up in the app within
+seconds, automatically, even via Siri and even while the phone is locked.
+
+**Why:** The CalDAV approach (below) turned out to be a dead end — Apple stopped exposing upgraded
+iCloud Reminders over CalDAV, so the server saw calendars but zero reminders lists. AppleScript
+on a Mac **can** see them (it's the local Reminders database), so this is the reliable path. iOS
+has no "when a reminder is created" automation trigger, so a short server-side poll is how you get
+true "every time" behavior.
+
+**How it works:**
+- New module `mac-reminders-sync.js` (zero deps — shells out to `osascript`). Each poll reads the
+  incomplete reminders in `MAC_REMINDERS_LIST` (id, title, due date → `YYYY-MM-DD`), imports any
+  it hasn't handled, then marks them complete in Reminders (or deletes them) so they never
+  re-import. Verified end-to-end on the Mac: import + due date carried over + marked complete +
+  no duplicates across polls.
+- Opt-in via env (`MAC_REMINDERS_LIST`, `MAC_REMINDERS_POLL_SECONDS`, `MAC_REMINDERS_AFTER`).
+  macOS-only (guards on `process.platform`); inert elsewhere. First run triggers the one-time
+  macOS "control Reminders" permission prompt.
+
+**Files:** `mac-reminders-sync.js` (new), `server.js` (wire-in), `Dockerfile` (ship the file),
+`.env.example` (documented).
+
 ### Apple Reminders → Donezo sync over iCloud CalDAV (Siri integration)
 
 **What:** An optional background sync so you can say **"Hey Siri, remind me to get groceries"**

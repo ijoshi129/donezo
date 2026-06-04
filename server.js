@@ -3,6 +3,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { startCaldavSync } = require("./caldav-sync");
+const { startMacRemindersSync } = require("./mac-reminders-sync");
 
 // Load a local .env file (KEY=value lines) before reading any config. Real
 // environment variables always win, and a missing .env is fine.
@@ -93,8 +94,9 @@ async function start() {
 
   scheduleNextNoonCleanup();
 
-  // Optional Apple Reminders -> Donezo sync (no-op unless ICLOUD_* env vars set).
+  // Optional Apple Reminders -> Donezo sync (each is a no-op unless configured).
   startCaldavSync({ store, saveStore, importTask: addImportedTask });
+  startMacRemindersSync({ store, saveStore, importTask: addImportedTask });
 }
 
 // Create a task from an imported Apple reminder (title + optional due date).

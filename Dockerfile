@@ -3,7 +3,7 @@ FROM node:22-alpine
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY index.html styles.css app.js manifest.webmanifest sw.js server.js caldav-sync.js ./
+COPY index.html styles.css app.js manifest.webmanifest sw.js server.js caldav-sync.js mac-reminders-sync.js ./
 COPY icons ./icons
 COPY data ./data
 
