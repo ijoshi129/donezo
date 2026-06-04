@@ -2,6 +2,7 @@ const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const { startCaldavSync } = require("./caldav-sync");
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS = {
 let store = {
   lastNoonCleanup: null,
   settings: { ...DEFAULT_SETTINGS },
+  importedUids: [],
   tasks: [],
 };
 let writeQueue = Promise.resolve();
@@ -61,6 +63,28 @@ async function start() {
   });
 
   scheduleNextNoonCleanup();
+
+  // Optional Apple Reminders -> Donezo sync (no-op unless ICLOUD_* env vars set).
+  startCaldavSync({ store, saveStore, importTask: addImportedTask });
+}
+
+// Create a task from an imported Apple reminder (title + optional due date).
+function addImportedTask({ title, dueDate }) {
+  const clean = String(title || "").trim();
+  if (!clean) return null;
+  const task = {
+    id: crypto.randomUUID(),
+    title: clean.slice(0, 140),
+    image: null,
+    dueDate: normalizeDueDate(dueDate),
+    tags: [],
+    recurrence: "none",
+    completed: false,
+    createdAt: Date.now(),
+    completedAt: null,
+  };
+  store.tasks.push(task);
+  return task;
 }
 
 async function route(request, response) {
@@ -253,6 +277,7 @@ async function loadStore() {
   try {
     store = JSON.parse(await fs.readFile(DATA_FILE, "utf8"));
     if (!Array.isArray(store.tasks)) store.tasks = [];
+    if (!Array.isArray(store.importedUids)) store.importedUids = [];
     store.settings = { ...DEFAULT_SETTINGS, ...(store.settings || {}) };
   } catch (error) {
     if (error.code !== "ENOENT") throw error;

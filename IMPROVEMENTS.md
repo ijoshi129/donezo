@@ -39,6 +39,37 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Apple Reminders → Donezo sync over iCloud CalDAV (Siri integration)
+
+**What:** An optional background sync so you can say **"Hey Siri, remind me to get groceries"**
+and have it land in Donezo automatically. The server logs into iCloud over CalDAV, watches a
+Reminders list, and imports new reminders as tasks.
+
+**Why:** Donezo is a web app, so Siri can't add to it directly. Letting Apple handle the voice
+part and pulling the reminders server-side gives a true one-phrase, hands-off capture that works
+even while the phone is locked.
+
+**How it works:**
+- New self-contained module `caldav-sync.js` (zero dependencies — Node's global `fetch`).
+  Discovers your iCloud principal → calendar-home → the list named `ICLOUD_LIST` (default
+  "Donezo"), then polls it with a CalDAV `REPORT` every `ICLOUD_POLL_SECONDS` (default 60).
+- Parses the returned `VTODO`s (summary → title, `DUE` → due date), imports each **once**
+  (tracked by reminder UID, persisted in `tasks.json`), and skips completed ones.
+- `ICLOUD_AFTER_IMPORT`: `keep` (default, read-only — never writes to iCloud), `complete`
+  (checks the reminder off in Apple Reminders), or `delete`.
+- **Entirely opt-in:** does nothing unless `ICLOUD_USER` + `ICLOUD_APP_PASSWORD` are set. Auth
+  uses an app-specific password (never your real one), kept in an env var, never committed.
+  Failures (bad password, list not found, network) log a clear message and never crash the app.
+
+**Testing:** the CalDAV/iCal parsers are covered by 17 unit tests against realistic iCloud-shaped
+payloads (namespaced XML, folded lines, escaped summaries, date-only vs datetime `DUE`, completed
+detection). Verified the poller stays off without env vars, engages when configured, and fails
+gracefully on bad credentials. The live iCloud round-trip can only be exercised with a real
+account + app password.
+
+**Files:** `caldav-sync.js` (new), `server.js` (wire-in + `addImportedTask` + `importedUids`
+store field), `Dockerfile` (ship the new file), `compose.yaml` (documented env vars).
+
 ### Keep completed tasks in a Completed section (don't auto-remove)
 
 **What:** Finished tasks now persist in a dedicated **Completed** section at the bottom of the

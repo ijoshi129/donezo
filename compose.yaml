@@ -6,6 +6,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4173
+      # Optional: sync Apple Reminders -> Donezo over iCloud CalDAV.
+      # Uncomment and fill in to enable (off by default). Use an app-specific
+      # password from account.apple.com, not your real Apple ID password.
+      # ICLOUD_USER: "you@icloud.com"
+      # ICLOUD_APP_PASSWORD: "abcd-efgh-ijkl-mnop"
+      # ICLOUD_LIST: "Donezo"            # the Reminders list to watch
+      # ICLOUD_POLL_SECONDS: "60"
+      # ICLOUD_AFTER_IMPORT: "keep"      # keep | complete | delete
     ports:
       - "4173:4173"
     volumes:
