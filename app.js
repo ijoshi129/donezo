@@ -53,6 +53,8 @@ const elements = {
   settingsModal: document.querySelector("#settings-modal"),
   settingsClose: document.querySelector("#settings-close"),
   settingAutoClear: document.querySelector("#setting-auto-clear"),
+  settingNotifications: document.querySelector("#setting-notifications"),
+  notifHint: document.querySelector("#notif-hint"),
   template: document.querySelector("#task-template"),
   toastRegion: document.querySelector("#toast-region"),
 };
@@ -156,7 +158,13 @@ elements.searchInput.addEventListener("input", () => {
 
 elements.settingsToggle.addEventListener("click", () => {
   elements.settingAutoClear.checked = settings.autoClearNoon;
+  reflectNotifState();
   elements.settingsModal.showModal();
+});
+
+elements.settingNotifications.addEventListener("change", () => {
+  if (elements.settingNotifications.checked) enableNotifications();
+  else disableNotifications();
 });
 
 elements.settingsClose.addEventListener("click", () => elements.settingsModal.close());
@@ -301,6 +309,78 @@ async function updateSetting(patch) {
     settings = previous;
     elements.settingAutoClear.checked = settings.autoClearNoon;
   }
+}
+
+function pushSupported() {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+async function reflectNotifState() {
+  if (!pushSupported()) {
+    elements.settingNotifications.checked = false;
+    elements.settingNotifications.disabled = true;
+    elements.notifHint.textContent = "On iPhone: add Donezo to your Home Screen first, then open it from there.";
+    return;
+  }
+  elements.settingNotifications.disabled = false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    elements.settingNotifications.checked = Boolean(sub);
+    elements.notifHint.textContent = sub
+      ? "On — a push each morning for tasks due today."
+      : "A push each morning for tasks due today.";
+  } catch {
+    elements.settingNotifications.checked = false;
+  }
+}
+
+async function enableNotifications() {
+  try {
+    if (!pushSupported()) throw new Error("unsupported");
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") throw new Error("denied");
+
+    const reg = await navigator.serviceWorker.ready;
+    const data = await apiRequest("/api/push/key");
+    if (!data.key) throw new Error("nokey");
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(data.key),
+    });
+    await apiRequest("/api/push/subscribe", { method: "POST", body: sub.toJSON() });
+    elements.notifHint.textContent = "On — a push each morning for tasks due today.";
+  } catch (error) {
+    elements.settingNotifications.checked = false;
+    elements.notifHint.textContent =
+      error.message === "denied"
+        ? "Blocked. Allow notifications for Donezo in your device settings."
+        : "Couldn't enable. On iPhone, open Donezo from the Home Screen icon (not Safari).";
+  }
+}
+
+async function disableNotifications() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await apiRequest("/api/push/unsubscribe", { method: "POST", body: { endpoint: sub.endpoint } }).catch(() => {});
+      await sub.unsubscribe();
+    }
+  } catch {
+    // ignore
+  }
+  elements.notifHint.textContent = "A push each morning for tasks due today.";
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const output = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i);
+  return output;
 }
 
 async function addTask(title, image = null) {

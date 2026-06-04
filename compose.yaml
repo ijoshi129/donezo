@@ -9,6 +9,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4173
+      # Set your timezone so the daily reminder fires at the right local hour.
+      TZ: America/New_York
+      # Daily "due today" push digest (Web Push). Optional.
+      PUSH_DIGEST_HOUR: "8"            # 0–23, local time
+      # PUSH_SUBJECT: "mailto:you@example.com"   # set if a push service is picky
       # Optional: sync Apple Reminders -> Donezo over iCloud CalDAV.
       # Uncomment and fill in to enable (off by default). Use an app-specific
       # password from account.apple.com, not your real Apple ID password.

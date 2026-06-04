@@ -4,6 +4,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { startCaldavSync } = require("./caldav-sync");
 const { startMacRemindersSync } = require("./mac-reminders-sync");
+const { generateVapidKeys, sendNotification } = require("./web-push");
 
 // Load a local .env file (KEY=value lines) before reading any config. Real
 // environment variables always win, and a missing .env is fine.
@@ -38,10 +39,14 @@ const DEFAULT_SETTINGS = {
   autoClearNoon: false,
 };
 
+const PUSH_DIGEST_HOUR = Math.min(23, Math.max(0, Number(process.env.PUSH_DIGEST_HOUR) || 8));
+const PUSH_SUBJECT = process.env.PUSH_SUBJECT || "mailto:donezo@localhost";
+
 let store = {
   lastNoonCleanup: null,
   settings: { ...DEFAULT_SETTINGS },
   importedUids: [],
+  push: { vapid: null, subscriptions: [] },
   tasks: [],
 };
 let writeQueue = Promise.resolve();
@@ -81,6 +86,11 @@ async function start() {
   await migrateLegacyImages();
   await clearCompletedAfterNoon();
 
+  if (!store.push.vapid) {
+    store.push.vapid = generateVapidKeys();
+    await saveStore();
+  }
+
   const server = http.createServer((request, response) => {
     route(request, response).catch((error) => {
       console.error(error);
@@ -93,10 +103,54 @@ async function start() {
   });
 
   scheduleNextNoonCleanup();
+  scheduleNextDigest();
 
   // Optional Apple Reminders -> Donezo sync (each is a no-op unless configured).
   startCaldavSync({ store, saveStore, importTask: addImportedTask });
   startMacRemindersSync({ store, saveStore, importTask: addImportedTask });
+}
+
+// Once a day, push a "due today" digest to all subscribed devices.
+function scheduleNextDigest() {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(PUSH_DIGEST_HOUR, 0, 0, 0);
+  if (now >= next) next.setDate(next.getDate() + 1);
+  setTimeout(() => {
+    sendDueDigest()
+      .catch((error) => console.error("[push] digest error:", error.message))
+      .finally(scheduleNextDigest);
+  }, next.getTime() - now.getTime() + 1000);
+}
+
+async function sendDueDigest() {
+  const subs = store.push.subscriptions;
+  if (!subs.length) return;
+
+  const today = localDateKey(new Date());
+  const due = store.tasks.filter((t) => !t.completed && t.dueDate && t.dueDate <= today);
+  if (!due.length) return; // nothing due — don't nag
+
+  const names = due.slice(0, 3).map((t) => t.title).join(", ");
+  const payload = JSON.stringify({
+    title: `Donezo — ${due.length} due today`,
+    body: names + (due.length > 3 ? `, +${due.length - 3} more` : ""),
+    url: "/",
+  });
+
+  const gone = [];
+  for (const sub of subs) {
+    try {
+      const status = await sendNotification(sub, payload, store.push.vapid, PUSH_SUBJECT);
+      if (status === 404 || status === 410) gone.push(sub.endpoint);
+    } catch (error) {
+      console.error("[push] send failed:", error.message);
+    }
+  }
+  if (gone.length) {
+    store.push.subscriptions = subs.filter((s) => !gone.includes(s.endpoint));
+    await saveStore();
+  }
 }
 
 // Create a task from an imported Apple reminder (title + optional due date).
@@ -148,6 +202,48 @@ async function routeApi(request, response, url) {
     }
     await saveStore();
     sendJson(response, 200, { settings: store.settings });
+    return;
+  }
+
+  if (url.pathname === "/api/push/key" && request.method === "GET") {
+    sendJson(response, 200, { key: store.push.vapid ? store.push.vapid.publicKey : null });
+    return;
+  }
+
+  if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+    const sub = await readJson(request);
+    if (!sub || !sub.endpoint || !sub.keys) {
+      sendJson(response, 400, { error: "Invalid subscription" });
+      return;
+    }
+    store.push.subscriptions = store.push.subscriptions.filter((s) => s.endpoint !== sub.endpoint);
+    store.push.subscriptions.push(sub);
+    await saveStore();
+    sendJson(response, 201, { ok: true });
+    return;
+  }
+
+  if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+    const body = await readJson(request);
+    const endpoint = body && body.endpoint;
+    store.push.subscriptions = store.push.subscriptions.filter((s) => s.endpoint !== endpoint);
+    await saveStore();
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  if (url.pathname === "/api/push/test" && request.method === "POST") {
+    const payload = JSON.stringify({ title: "Donezo", body: "Notifications are working ✓", url: "/" });
+    let sent = 0;
+    for (const sub of store.push.subscriptions) {
+      try {
+        const status = await sendNotification(sub, payload, store.push.vapid, PUSH_SUBJECT);
+        if (status >= 200 && status < 300) sent += 1;
+      } catch (error) {
+        console.error("[push] test failed:", error.message);
+      }
+    }
+    sendJson(response, 200, { sent, total: store.push.subscriptions.length });
     return;
   }
 
@@ -309,6 +405,8 @@ async function loadStore() {
     store = JSON.parse(await fs.readFile(DATA_FILE, "utf8"));
     if (!Array.isArray(store.tasks)) store.tasks = [];
     if (!Array.isArray(store.importedUids)) store.importedUids = [];
+    if (!store.push || typeof store.push !== "object") store.push = { vapid: null, subscriptions: [] };
+    if (!Array.isArray(store.push.subscriptions)) store.push.subscriptions = [];
     store.settings = { ...DEFAULT_SETTINGS, ...(store.settings || {}) };
   } catch (error) {
     if (error.code !== "ENOENT") throw error;

@@ -39,6 +39,35 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Push notifications — daily "due today" digest (Web Push)
+
+**What:** Donezo can send a once-a-day push notification listing what's due today (and overdue).
+Toggle it on under the gear → **Daily reminder**. On iOS this needs the app added to the Home
+Screen (Web Push only works for installed PWAs, iOS 16.4+).
+
+**Why:** The widget is a glanceable pull; this is the proactive push so things don't slip.
+
+**How it works:**
+- New **dependency-free** `web-push.js` implements VAPID (RFC 8292, ES256 JWT) and the aes128gcm
+  payload encryption (RFC 8291) using only Node's `crypto` — no `web-push` npm package, keeping
+  the app self-contained. The VAPID JWT signing and the encryption are unit-tested (JWT verifies;
+  encrypt→decrypt round-trips).
+- Server generates+persists a VAPID keypair, exposes `GET /api/push/key`,
+  `POST /api/push/subscribe` / `unsubscribe`, and `POST /api/push/test`. A daily scheduler at
+  `PUSH_DIGEST_HOUR` (local time, default 8) pushes the digest to every subscription and prunes
+  any that return 404/410. It stays quiet when nothing's due.
+- Service worker gained `push` + `notificationclick` handlers. The settings toggle requests
+  permission, subscribes via the Push API, and registers the subscription; errors give iOS-aware
+  guidance ("open from the Home Screen icon").
+- Config: `PUSH_DIGEST_HOUR`, `PUSH_SUBJECT`, and `TZ` (set it in Docker so the hour is local).
+
+**Tested:** crypto (JWT + encryption round-trip), key/subscribe endpoints, and that the container
+ships `web-push.js` and serves the key. Real on-device delivery needs verifying on your iPhone.
+
+**Files:** `web-push.js` (new), `server.js` (keys, endpoints, digest scheduler), `sw.js`
+(push handlers, cache v16 → v17), `app.js` (subscribe flow), `index.html` (settings toggle),
+`compose.yaml` (env), `Dockerfile` (ship the file).
+
 ### Mac Reminders bridge — instant Siri capture when Donezo runs elsewhere (Docker)
 
 **What:** A standalone script (`mac-reminders-bridge.js`) you run **on a Mac** that reads the
