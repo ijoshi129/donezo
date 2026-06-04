@@ -11,6 +11,10 @@ coverage/
 # Local task data can contain user content and attached images.
 data/
 
+# Local launcher — contains your iCloud app-specific password. Never commit.
+run.sh
+donezo.env
+
 # Source prompt/reference artifacts, not application source.
 instructions.txt
 stitch_swipe_task_manager.zip
