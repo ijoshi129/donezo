@@ -6,6 +6,7 @@ const SWIPE_COMMIT_MIN_MS = 180;
 const SWIPE_COMMIT_MAX_MS = 360;
 const DELETE_ANIMATION_MS = 260;
 const GROUP_MOVE_MS = 360;
+const MARK_COMPLETE_MS = 300;
 const MAX_IMAGE_EDGE = 1600;
 const IMAGE_QUALITY = 0.82;
 const UNDO_WINDOW_MS = 5000;
@@ -463,6 +464,14 @@ async function toggleTask(id, forceComplete, node = null) {
   if (!current) return;
 
   const completed = typeof forceComplete === "boolean" ? forceComplete : !current.completed;
+
+  // Graceful complete: check it off in place (animating), let it land, then
+  // glide it down to the Completed section — instead of snapping away.
+  if (completed && node && !current.completed) {
+    node.classList.add("is-marking");
+    await delay(MARK_COMPLETE_MS);
+  }
+
   const previousRects = getTaskRects();
 
   tasks = tasks.map((task) => {

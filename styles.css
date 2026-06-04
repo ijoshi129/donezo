@@ -600,7 +600,13 @@ input:focus-visible,
   background: var(--sheet-2);
 }
 
-.task-card.is-complete .task-title {
+/* brief green flash while it's being checked off in place */
+.task-card.is-marking .task-surface {
+  background: rgba(47, 122, 72, 0.16);
+}
+
+.task-card.is-complete .task-title,
+.task-card.is-marking .task-title {
   color: var(--ink-3);
   text-decoration: line-through;
   text-decoration-color: var(--flag);
@@ -638,12 +644,14 @@ input:focus-visible,
   transition: opacity 150ms ease, transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.task-card.is-complete .task-check {
+.task-card.is-complete .task-check,
+.task-card.is-marking .task-check {
   color: var(--sheet);
   background: var(--grass);
 }
 
-.task-card.is-complete .task-check svg {
+.task-card.is-complete .task-check svg,
+.task-card.is-marking .task-check svg {
   opacity: 1;
   transform: scale(1) rotate(0deg);
 }
