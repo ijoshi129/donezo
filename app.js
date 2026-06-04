@@ -55,6 +55,7 @@ const elements = {
   settingAutoClear: document.querySelector("#setting-auto-clear"),
   settingNotifications: document.querySelector("#setting-notifications"),
   notifHint: document.querySelector("#notif-hint"),
+  notifTest: document.querySelector("#notif-test"),
   template: document.querySelector("#task-template"),
   toastRegion: document.querySelector("#toast-region"),
 };
@@ -165,6 +166,25 @@ elements.settingsToggle.addEventListener("click", () => {
 elements.settingNotifications.addEventListener("change", () => {
   if (elements.settingNotifications.checked) enableNotifications();
   else disableNotifications();
+});
+
+elements.notifTest.addEventListener("click", async () => {
+  elements.notifTest.disabled = true;
+  elements.notifTest.textContent = "Sending…";
+  try {
+    const result = await apiRequest("/api/push/test", { method: "POST" });
+    elements.notifHint.textContent =
+      result.total === 0
+        ? "Turn on Daily reminder first, then test."
+        : result.sent > 0
+          ? "Test sent — check your phone."
+          : "Couldn't deliver. Check the server log.";
+  } catch {
+    elements.notifHint.textContent = "Test failed — is the server reachable?";
+  } finally {
+    elements.notifTest.textContent = "Send a test notification";
+    elements.notifTest.disabled = false;
+  }
 });
 
 elements.settingsClose.addEventListener("click", () => elements.settingsModal.close());

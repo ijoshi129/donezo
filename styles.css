@@ -1192,6 +1192,31 @@ input:focus-visible,
 
 /* ---------- settings ---------- */
 
+.notif-test-button {
+  justify-self: start;
+  margin-top: -6px;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--sheet-2);
+  border: var(--line);
+  border-radius: 4px;
+  box-shadow: var(--hard-sm);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.notif-test-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+.notif-test-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .setting-row {
   display: flex;
   align-items: center;
