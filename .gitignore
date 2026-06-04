@@ -19,3 +19,7 @@ donezo.env
 # Source prompt/reference artifacts, not application source.
 instructions.txt
 stitch_swipe_task_manager.zip
+
+# Local launchd agent + its log (machine-specific)
+com.donezo.bridge.plist
+bridge.log
