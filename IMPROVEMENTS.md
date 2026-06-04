@@ -39,6 +39,32 @@ Every change keeps the zero-dependency, vanilla-JS philosophy. Run with `node se
 
 <!-- newest first; each entry: what changed, why, files touched -->
 
+### Dark mode ("carbon paper")
+
+**What:** A dark variant of the risograph theme that **follows the system** automatically — dark
+warm stock, light off-white "ink", same vermilion/green/blue language. Offset shadows stay dark
+(routed through a new `--edge` variable) so the letterpress/stamped look survives the inversion.
+
+**Why:** Night use, and it's a natural fit — the ledger aesthetic reads beautifully inverted.
+
+**Files:** `styles.css` (`@media (prefers-color-scheme: dark)` palette + `--edge` shadow var),
+`index.html` (per-scheme `theme-color`).
+
+### Natural-language quick-add
+
+**What:** Type the due date and tags right into the add bar and they're pulled out automatically.
+`Pay rent friday #home` → a task **"Pay rent"**, due this Friday, tagged **#home**. Understands
+`today/tomorrow/tonight`, weekday names (+ `next friday`), `in 3 days`, `next week/month`,
+`jun 12` / `12 june`, `6/15`, `2026-07-01`, and `#tags`. A date set via the calendar button still
+wins over a parsed one.
+
+**Why:** Fastest possible capture — no reaching for the date picker or edit screen.
+
+**Tested:** the parser has 13 unit cases (relative dates, weekdays, month/numeric/ISO dates,
+multiple tags, false-positive guards like "C#") and was verified live in the composer.
+
+**Files:** `app.js` (`parseQuickAdd` + date helpers, wired into `addTask`).
+
 ### Push notifications — daily "due today" digest (Web Push)
 
 **What:** Donezo can send a once-a-day push notification listing what's due today (and overdue).

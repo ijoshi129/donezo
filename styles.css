@@ -21,9 +21,10 @@
   --grass: #2f7a48;     /* riso green — done / today */
   --gold: #cf9417;      /* riso amber — soon */
 
+  --edge: #251a12;      /* hard-shadow color (stays dark in both themes) */
   --line: 2px solid var(--ink);
-  --hard: 4px 4px 0 var(--ink);
-  --hard-sm: 3px 3px 0 var(--ink);
+  --hard: 4px 4px 0 var(--edge);
+  --hard-sm: 3px 3px 0 var(--edge);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   --serif: "Fraunces", Georgia, "Times New Roman", serif;
@@ -31,6 +32,36 @@
   --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   font-family: var(--sans);
+}
+
+/* ---------- dark "carbon paper" — follows the system ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #1a1713;     /* dark warm stock */
+    --sheet: #2a241b;     /* raised cards (lighter than the page) */
+    --sheet-2: #221d15;   /* recessed stock */
+    --ink: #efe6d2;       /* warm off-white "ink" */
+    --ink-2: #b3a78d;
+    --ink-3: #7e735d;
+    --flag: #f0512f;      /* vermilion, a touch brighter for dark */
+    --flag-deep: #c23a20;
+    --blue: #8198ff;
+    --grass: #56ab6d;
+    --gold: #d9a52a;
+    --edge: #0c0a06;      /* shadows go darker, not light */
+  }
+
+  body {
+    background:
+      radial-gradient(135% 120% at 50% -10%, transparent 52%, rgba(0, 0, 0, 0.38)),
+      var(--paper);
+  }
+
+  body::before {
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+  }
 }
 
 * {
@@ -211,12 +242,12 @@ svg {
 .task-tag:active,
 .toast-action:active {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--ink);
+  box-shadow: 1px 1px 0 var(--edge);
 }
 
 .fab:active {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: 2px 2px 0 var(--edge);
 }
 
 :focus-visible {
@@ -573,7 +604,7 @@ input:focus-visible,
 }
 
 .task-card.is-lifting {
-  box-shadow: 8px 9px 0 var(--ink);
+  box-shadow: 8px 9px 0 var(--edge);
   transform: scale(1.015);
 }
 
@@ -780,7 +811,7 @@ input:focus-visible,
   background: var(--flag);
   border: var(--line);
   border-radius: 50%;
-  box-shadow: 5px 5px 0 var(--ink);
+  box-shadow: 5px 5px 0 var(--edge);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
@@ -814,7 +845,7 @@ input:focus-visible,
   background: var(--sheet);
   border: var(--line);
   border-radius: 6px;
-  box-shadow: 7px 7px 0 var(--ink);
+  box-shadow: 7px 7px 0 var(--edge);
 }
 
 .modal[open] .modal-panel {
@@ -1217,7 +1248,7 @@ input:focus-visible,
 
 .notif-test-button:active {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--ink);
+  box-shadow: 1px 1px 0 var(--edge);
 }
 
 .notif-test-button:disabled {
@@ -1349,7 +1380,7 @@ input:focus-visible,
   background: var(--flag);
   border: var(--line);
   border-radius: 3px;
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: 2px 2px 0 var(--edge);
 }
 
 .toast-timer {
@@ -1387,12 +1418,12 @@ input:focus-visible,
   .secondary-button:hover,
   .fab:hover {
     transform: translate(-1px, -1px);
-    box-shadow: 5px 5px 0 var(--ink);
+    box-shadow: 5px 5px 0 var(--edge);
   }
 
   .task-card:hover {
     transform: translate(-1px, -1px);
-    box-shadow: 6px 6px 0 var(--ink);
+    box-shadow: 6px 6px 0 var(--edge);
   }
 
   .task-card.is-complete:hover {

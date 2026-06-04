@@ -408,12 +408,20 @@ async function addTask(title, image = null) {
   const cleanTitle = title.trim();
   if (!cleanTitle || isSaving) return;
 
-  const dueDate = pendingDueDate;
+  // Pull a due date and #tags out of the typed text. A date set via the
+  // calendar button still wins over a parsed one.
+  const parsed = parseQuickAdd(cleanTitle);
+  const finalTitle = parsed.title;
+  const dueDate = pendingDueDate || parsed.dueDate;
+  const tags = parsed.tags;
+  const body = { title: finalTitle, image, dueDate, tags };
+
   const tempTask = {
     id: `pending-${Date.now()}`,
-    title: cleanTitle,
+    title: finalTitle,
     image,
     dueDate,
+    tags,
     completed: false,
     createdAt: Date.now(),
     completedAt: null,
@@ -432,30 +440,124 @@ async function addTask(title, image = null) {
   render();
 
   try {
-    const data = await apiRequest(API_BASE, {
-      method: "POST",
-      body: { title: cleanTitle, image, dueDate },
-    });
+    const data = await apiRequest(API_BASE, { method: "POST", body });
     tasks = tasks.map((task) => (task.id === tempTask.id ? data.task : task));
     render();
   } catch (error) {
     if (error.offline) {
       // Keep the optimistic task and replay the create when back online.
-      enqueue({ kind: "create", tempId: tempTask.id, body: { title: cleanTitle, image, dueDate } });
+      enqueue({ kind: "create", tempId: tempTask.id, body });
     } else {
       tasks = tasks.filter((task) => task.id !== tempTask.id);
       elements.composer.classList.add("is-open");
       elements.input.value = cleanTitle;
       pendingImage = image;
-      pendingDueDate = dueDate;
-      elements.taskDue.value = dueDate || "";
       renderImagePreview(elements.newImagePreview, image);
-      renderComposerDue();
       render();
     }
   } finally {
     isSaving = false;
   }
+}
+
+// Parse "Pay rent friday #home" -> { title:"Pay rent", dueDate:"2026-06-05", tags:["home"] }.
+function parseQuickAdd(raw) {
+  let text = ` ${raw} `;
+  const tags = [];
+  text = text.replace(/\s#([a-z0-9][\w-]{0,23})/gi, (match, tag) => {
+    tags.push(tag.toLowerCase());
+    return " ";
+  });
+
+  let dueDate = null;
+  const found = extractDatePhrase(text);
+  if (found) {
+    dueDate = found.dueDate;
+    text = `${text.slice(0, found.start)} ${text.slice(found.end)}`;
+  }
+
+  const title = text.replace(/\s+/g, " ").trim();
+  return { title: title || raw.trim(), tags: [...new Set(tags)], dueDate };
+}
+
+const QA_MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+const QA_DAYS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+
+function extractDatePhrase(text) {
+  const today = startOfToday();
+  const month = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+  const patterns = [
+    [/\b(\d{4})-(\d{2})-(\d{2})\b/, (m) => validYmd(+m[1], +m[2] - 1, +m[3])],
+    [new RegExp(`\\b${month}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b`, "i"), (m) => monthDayYmd(QA_MONTHS[m[1].slice(0, 3).toLowerCase()], +m[2], m[3] ? +m[3] : null, today)],
+    [new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${month}\\b`, "i"), (m) => monthDayYmd(QA_MONTHS[m[2].slice(0, 3).toLowerCase()], +m[1], null, today)],
+    [/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/, (m) => numericYmd(+m[1], +m[2], m[3], today)],
+    [/\b(today|tonight)\b/i, () => toYmd(today)],
+    [/\btomorrow\b/i, () => toYmd(addDays(today, 1))],
+    [/\bin\s+(\d{1,3})\s+(days?|weeks?)\b/i, (m) => toYmd(addDays(today, Number(m[1]) * (/week/i.test(m[2]) ? 7 : 1)))],
+    [/\bnext\s+week\b/i, () => toYmd(addDays(today, 7))],
+    [/\bnext\s+month\b/i, () => toYmd(addMonths(today, 1))],
+    [/\b(next\s+)?(sunday|saturday|thursday|wednesday|tuesday|monday|friday|sun|mon|tue|wed|thu|fri|sat)\b/i, (m) => toYmd(weekdayDate(today, m[2], Boolean(m[1])))],
+  ];
+
+  let best = null;
+  for (const [re, fn] of patterns) {
+    const m = re.exec(text);
+    if (!m) continue;
+    const due = fn(m);
+    if (due && (!best || m.index < best.start)) {
+      best = { dueDate: due, start: m.index, end: m.index + m[0].length };
+    }
+  }
+  return best;
+}
+
+function toYmd(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function addMonths(d, n) {
+  const x = new Date(d);
+  x.setMonth(x.getMonth() + n);
+  return x;
+}
+
+function weekdayDate(today, word, next) {
+  const target = QA_DAYS[word.slice(0, 3).toLowerCase()];
+  let diff = (target - today.getDay() + 7) % 7;
+  if (next) diff = diff === 0 ? 7 : diff + 7;
+  return addDays(today, diff);
+}
+
+function validYmd(year, month, day) {
+  const d = new Date(year, month, day);
+  return d.getMonth() === month ? toYmd(d) : null;
+}
+
+function monthDayYmd(month, day, year, today) {
+  if (month == null || !day || day < 1 || day > 31) return null;
+  const y = year != null ? year : today.getFullYear();
+  let d = new Date(y, month, day);
+  if (d.getMonth() !== month) return null;
+  if (year == null && d < today) d = new Date(y + 1, month, day);
+  return toYmd(d);
+}
+
+function numericYmd(mm, dd, yearStr, today) {
+  const month = mm - 1;
+  if (month < 0 || month > 11 || dd < 1 || dd > 31) return null;
+  let y = yearStr ? Number(yearStr) : today.getFullYear();
+  if (yearStr && y < 100) y += 2000;
+  let d = new Date(y, month, dd);
+  if (d.getMonth() !== month) return null;
+  if (!yearStr && d < today) d = new Date(y + 1, month, dd);
+  return toYmd(d);
 }
 
 async function toggleTask(id, forceComplete, node = null) {
