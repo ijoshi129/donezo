@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Donezo — Design Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   Donezo — "Quiet" : a minimal-SaaS task system
+   Linear/Things lineage — hairline borders, one calm accent,
+   precise type, restrained motion. Light + dark.
+   ============================================================ */
+
+/* ---- design canvas (not part of the app) ---- */
+:root{
+  --canvas:#f4f4f5;
+  --canvas-grid: rgba(9,9,11,.035);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:"Geist",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  background:
+    linear-gradient(var(--canvas-grid) 1px,transparent 1px) 0 0/100% 28px,
+    var(--canvas);
+  color:#18181b;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  padding:56px 24px 96px;
+}
+.mock-head{max-width:1080px;margin:0 auto 40px}
+.mock-eyebrow{
+  font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:#a1a1aa;margin:0 0 10px;
+}
+.mock-title{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px}
+.mock-sub{font-size:15px;color:#71717a;margin:0;max-width:56ch;line-height:1.55}
+.frames{
+  max-width:1080px;margin:0 auto;display:flex;gap:40px;flex-wrap:wrap;
+  align-items:flex-start;justify-content:center;
+}
+.stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+.stage-label{
+  font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:#a1a1aa;
+}
+
+/* ---- device frame ---- */
+.device{
+  width:390px;border-radius:44px;padding:12px;
+  background:#fff;border:1px solid rgba(9,9,11,.08);
+  box-shadow:0 1px 1px rgba(9,9,11,.04),0 12px 24px -12px rgba(9,9,11,.18),
+             0 40px 80px -40px rgba(9,9,11,.28);
+}
+.device.dark{background:#0a0a0b;border-color:rgba(255,255,255,.08);
+  box-shadow:0 1px 1px rgba(0,0,0,.4),0 24px 60px -24px rgba(0,0,0,.7)}
+
+/* ============================================================
+   THE APP  (this is the design system to port)
+   ============================================================ */
+.app{
+  --bg:#ffffff;
+  --surface:#ffffff;
+  --surface-2:#fafafa;
+  --raised:#ffffff;
+  --text:#18181b;
+  --text-2:#52525b;
+  --text-3:#a1a1aa;
+  --hair:rgba(9,9,11,.07);
+  --hair-2:rgba(9,9,11,.12);
+  --accent:#3d5afe;        /* the single restrained accent */
+  --accent-ink:#ffffff;
+  --accent-soft:rgba(61,90,254,.10);
+  --green:#11936a;
+  --green-soft:rgba(17,147,106,.12);
+  --red:#e5484d;
+  --red-soft:rgba(229,72,77,.12);
+  --amber:#b87503;
+  --shadow-sm:0 1px 2px rgba(9,9,11,.05);
+  --shadow-pop:0 12px 30px -10px rgba(9,9,11,.22);
+  --radius:18px;
+  --radius-sm:12px;
+
+  border-radius:33px;overflow:hidden;background:var(--bg);color:var(--text);
+  height:792px;display:flex;flex-direction:column;position:relative;
+  font-size:15px;line-height:1.4;
+}
+.app.dark{
+  --bg:#0b0b0c;
+  --surface:#0e0e10;
+  --surface-2:#0c0c0e;
+  --raised:#161618;
+  --text:#f4f4f5;
+  --text-2:#a1a1aa;
+  --text-3:#6c6c74;
+  --hair:rgba(255,255,255,.07);
+  --hair-2:rgba(255,255,255,.12);
+  --accent:#6479ff;
+  --accent-soft:rgba(100,121,255,.16);
+  --green:#3dd9a0;
+  --green-soft:rgba(61,217,160,.14);
+  --red:#ff6369;
+  --red-soft:rgba(255,99,105,.15);
+  --amber:#e2b04a;
+  --shadow-pop:0 16px 40px -12px rgba(0,0,0,.6);
+}
+
+/* notch / status spacer */
+.app .statusbar{height:18px}
+
+/* ---- top bar ---- */
+.app .topbar{
+  display:flex;align-items:center;gap:12px;
+  padding:6px 20px 14px;
+}
+.app .wordmark{
+  font-size:21px;font-weight:600;letter-spacing:-.03em;margin:0;flex:1;
+}
+.app .wordmark b{color:var(--accent);font-weight:600}
+.app .icon-btn{
+  width:36px;height:36px;border-radius:11px;border:1px solid var(--hair);
+  background:var(--surface);color:var(--text-2);display:grid;place-items:center;
+  cursor:pointer;transition:.15s ease;
+}
+.app .icon-btn:hover{color:var(--text);border-color:var(--hair-2);background:var(--surface-2)}
+.app svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* scroll body */
+.app .scroll{flex:1;overflow:hidden;padding:0 16px;display:flex;flex-direction:column;gap:14px}
+
+/* ---- composer ---- */
+.app .composer{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface);border:1px solid var(--hair);border-radius:16px;
+  padding:7px 7px 7px 14px;box-shadow:var(--shadow-sm);
+  transition:.18s ease;
+}
+.app .composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.app .composer input{
+  flex:1;border:0;background:transparent;outline:none;font:inherit;
+  color:var(--text);font-size:15px;padding:4px 0;
+}
+.app .composer input::placeholder{color:var(--text-3)}
+.app .composer .ghost{
+  width:34px;height:34px;border-radius:10px;border:0;background:transparent;
+  color:var(--text-3);display:grid;place-items:center;cursor:pointer;transition:.15s;
+}
+.app .composer .ghost:hover{color:var(--text-2);background:var(--surface-2)}
+.app .composer .add{
+  width:34px;height:34px;border-radius:10px;border:0;background:var(--accent);
+  color:var(--accent-ink);display:grid;place-items:center;cursor:pointer;
+  box-shadow:0 1px 2px rgba(61,90,254,.4);transition:.15s;
+}
+.app .composer .add:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.app .composer .add svg{stroke-width:2}
+
+/* ---- progress summary ---- */
+.app .summary{padding:2px 4px}
+.app .summary .row{display:flex;align-items:baseline;justify-content:space-between;
+  margin-bottom:9px;font-size:13px}
+.app .summary .left{color:var(--text);font-weight:500}
+.app .summary .left b{font-weight:600}
+.app .summary .right{color:var(--text-3);font-family:"Geist Mono",monospace;font-size:12px}
+.app .track{height:5px;border-radius:99px;background:var(--hair);overflow:hidden}
+.app .fill{height:100%;border-radius:99px;background:var(--accent);width:62%;
+  background-image:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#9b6bff))}
+
+/* ---- section label ---- */
+.app .sec{display:flex;align-items:center;gap:10px;margin:6px 4px -2px;
+  font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--text-3)}
+.app .sec::after{content:"";flex:1;height:1px;background:var(--hair)}
+
+/* ---- task list ---- */
+.app .list{display:flex;flex-direction:column;gap:8px}
+
+.app .task{
+  position:relative;border-radius:var(--radius);overflow:hidden;
+}
+/* swipe action layers (behind the card) */
+.app .task .behind{position:absolute;inset:0;display:flex;border-radius:var(--radius)}
+.app .task .behind .act{flex:1;display:flex;align-items:center;gap:8px;
+  font-size:13px;font-weight:500;padding:0 20px}
+.app .task .behind .complete{background:var(--green-soft);color:var(--green);justify-content:flex-start}
+.app .task .behind .delete{background:var(--red-soft);color:var(--red);justify-content:flex-end}
+
+.app .card{
+  position:relative;display:flex;align-items:flex-start;gap:12px;
+  background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);
+  padding:13px 14px;box-shadow:var(--shadow-sm);
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .15s,box-shadow .15s;
+}
+.app .card:hover{border-color:var(--hair-2);box-shadow:0 4px 14px -6px rgba(9,9,11,.14)}
+
+/* checkbox */
+.app .check{
+  margin-top:1px;flex:0 0 auto;width:21px;height:21px;border-radius:7px;
+  border:1.7px solid var(--hair-2);background:transparent;cursor:pointer;
+  display:grid;place-items:center;color:transparent;transition:.18s ease;
+}
+.app .check:hover{border-color:var(--accent)}
+.app .check svg{width:13px;height:13px;stroke-width:2.4}
+
+/* body */
+.app .body{flex:1;min-width:0}
+.app .title{font-size:14.5px;font-weight:450;color:var(--text);margin:0;letter-spacing:-.005em}
+.app .meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
+.app .meta:empty{display:none}
+
+.app .chip{
+  display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;
+  border-radius:7px;font-size:11.5px;font-weight:500;
+  background:var(--surface-2);border:1px solid var(--hair);color:var(--text-2);
+}
+.app .chip svg{width:12px;height:12px;stroke-width:1.8}
+.app .chip.due{font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.01em}
+.app .chip.today{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.app .chip.over{background:var(--red-soft);border-color:transparent;color:var(--red)}
+.app .chip.tag{padding-left:7px}
+.app .chip.tag .dot{width:6px;height:6px;border-radius:99px;background:var(--accent)}
+.app .chip.tag.g .dot{background:var(--green)}
+.app .chip.tag.a .dot{background:var(--amber)}
+.app .chip.rep{width:22px;padding:0;justify-content:center;color:var(--text-3)}
+
+.app .thumb{flex:0 0 auto;width:42px;height:42px;border-radius:10px;
+  object-fit:cover;border:1px solid var(--hair);margin-top:1px}
+
+/* completed task */
+.app .task.done .card{background:var(--surface-2);box-shadow:none;border-color:var(--hair)}
+.app .task.done .check{background:var(--green);border-color:var(--green);color:#fff}
+.app .task.done .title{color:var(--text-3);text-decoration:line-through;text-decoration-color:var(--text-3)}
+.app .task.done .chip{opacity:.6}
+
+/* mid-swipe demo states */
+.app .task.swiped-left .card{transform:translateX(-78px)}
+.app .task.swiped-right .card{transform:translateX(78px)}
+
+/* ---- FAB ---- */
+.app .fab{
+  position:absolute;right:18px;bottom:22px;width:52px;height:52px;border-radius:17px;
+  background:var(--accent);color:var(--accent-ink);border:0;display:grid;place-items:center;
+  box-shadow:0 8px 22px -6px rgba(61,90,254,.6);cursor:pointer;transition:.18s}
+.app .fab svg{width:22px;height:22px;stroke-width:2.2}
+.app .fab:hover{transform:translateY(-2px) scale(1.02)}
+
+/* search row (shown in second frame) */
+.app .search{
+  display:flex;align-items:center;gap:9px;background:var(--surface-2);
+  border:1px solid var(--hair);border-radius:13px;padding:9px 13px;color:var(--text-3);font-size:14px}
+.app .search input{border:0;background:transparent;outline:none;font:inherit;color:var(--text);flex:1}
+.app .search input::placeholder{color:var(--text-3)}
+
+/* fade-up entrance */
+.app .scroll>*{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.app .scroll>*:nth-child(1){animation-delay:.02s}
+.app .scroll>*:nth-child(2){animation-delay:.06s}
+.app .scroll>*:nth-child(3){animation-delay:.10s}
+.app .scroll>*:nth-child(4){animation-delay:.14s}
+.app .scroll>*:nth-child(5){animation-delay:.18s}
+.app .list .task{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.app .list .task:nth-child(1){animation-delay:.16s}
+.app .list .task:nth-child(2){animation-delay:.20s}
+.app .list .task:nth-child(3){animation-delay:.24s}
+.app .list .task:nth-child(4){animation-delay:.28s}
+.app .list .task:nth-child(5){animation-delay:.32s}
+.app .list .task:nth-child(6){animation-delay:.36s}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   MODAL MOCKS (shown as standalone cards on the canvas)
+   ============================================================ */
+.overlays{max-width:1080px;margin:64px auto 0;display:flex;gap:40px;flex-wrap:wrap;justify-content:center}
+.sheet{
+  width:390px;border-radius:24px;padding:22px;position:relative;
+  font-family:"Geist",sans-serif;
+}
+.sheet.light{background:#fff;border:1px solid rgba(9,9,11,.08);
+  box-shadow:0 30px 70px -30px rgba(9,9,11,.4)}
+.sheet.dark{background:#161618;border:1px solid rgba(255,255,255,.09);color:#f4f4f5;
+  box-shadow:0 30px 70px -30px rgba(0,0,0,.7)}
+.sheet .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.sheet h3{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em}
+.sheet .x{width:30px;height:30px;border-radius:9px;border:1px solid rgba(9,9,11,.1);
+  background:transparent;display:grid;place-items:center;color:#a1a1aa;cursor:pointer}
+.sheet.dark .x{border-color:rgba(255,255,255,.12)}
+.sheet svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.field{margin-bottom:14px}
+.field>label{display:block;font-size:11px;font-family:"Geist Mono",monospace;
+  letter-spacing:.1em;text-transform:uppercase;color:#a1a1aa;margin-bottom:7px}
+.input{width:100%;border:1px solid rgba(9,9,11,.12);border-radius:11px;padding:11px 13px;
+  font:inherit;font-size:15px;background:#fff;color:#18181b;outline:none}
+.sheet.dark .input{background:#0e0e10;border-color:rgba(255,255,255,.12);color:#f4f4f5}
+.input:focus{border-color:#3d5afe;box-shadow:0 0 0 4px rgba(61,90,254,.12)}
+.input.title-input{font-size:16px;font-weight:500}
+
+.row2{display:flex;gap:10px}
+.row2>.field{flex:1}
+
+.seg{display:flex;gap:6px;background:rgba(9,9,11,.04);padding:4px;border-radius:11px}
+.sheet.dark .seg{background:rgba(255,255,255,.05)}
+.seg button{flex:1;border:0;background:transparent;border-radius:8px;padding:8px;
+  font:inherit;font-size:13px;color:#71717a;cursor:pointer;font-weight:500}
+.seg button.on{background:#fff;color:#18181b;box-shadow:0 1px 2px rgba(9,9,11,.1)}
+.sheet.dark .seg button.on{background:#2a2a2e;color:#f4f4f5}
+
+.tags-field{display:flex;flex-wrap:wrap;gap:7px;align-items:center;
+  border:1px solid rgba(9,9,11,.12);border-radius:11px;padding:9px 11px;background:#fff}
+.sheet.dark .tags-field{background:#0e0e10;border-color:rgba(255,255,255,.12)}
+.t-pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:8px;
+  background:rgba(61,90,254,.1);color:#3d5afe;font-size:12.5px;font-weight:500}
+.t-pill .dot{width:6px;height:6px;border-radius:99px;background:currentColor}
+.t-pill.g{background:rgba(17,147,106,.12);color:#11936a}
+.tags-field input{border:0;outline:none;background:transparent;font:inherit;font-size:14px;flex:1;min-width:80px;color:inherit}
+
+.img-drop{display:flex;align-items:center;gap:11px;border:1px dashed rgba(9,9,11,.18);
+  border-radius:11px;padding:12px;color:#71717a;font-size:13.5px}
+.sheet.dark .img-drop{border-color:rgba(255,255,255,.16);color:#a1a1aa}
+.img-drop .ic{width:38px;height:38px;border-radius:9px;background:rgba(9,9,11,.04);display:grid;place-items:center;color:#a1a1aa}
+.sheet.dark .img-drop .ic{background:rgba(255,255,255,.05)}
+
+.actions{display:flex;gap:10px;margin-top:22px}
+.btn{flex:1;border-radius:11px;padding:12px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;border:1px solid transparent}
+.btn.ghost{background:transparent;border-color:rgba(9,9,11,.12);color:#52525b}
+.sheet.dark .btn.ghost{border-color:rgba(255,255,255,.14);color:#a1a1aa}
+.btn.primary{background:#3d5afe;color:#fff;box-shadow:0 2px 8px -2px rgba(61,90,254,.5)}
+.sheet.dark .btn.primary{background:#6479ff}
+
+/* settings rows */
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:16px 2px;border-bottom:1px solid rgba(255,255,255,.07)}
+.set-row:last-child{border-bottom:0}
+.set-row .st{font-size:14.5px;font-weight:500}
+.set-row .sh{font-size:12.5px;color:#a1a1aa;margin-top:3px;line-height:1.4}
+.switch{flex:0 0 auto;width:44px;height:26px;border-radius:99px;background:rgba(255,255,255,.14);
+  position:relative;cursor:pointer;transition:.2s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:99px;
+  background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch.on{background:#6479ff}
+.switch.on::after{left:21px}
+.test-btn{width:100%;margin-top:6px;border:1px solid rgba(255,255,255,.12);background:transparent;
+  color:#f4f4f5;border-radius:11px;padding:11px;font:inherit;font-size:13.5px;font-weight:500;cursor:pointer}
+
+@media (max-width:520px){
+  body{padding:32px 14px 64px}
+  .device,.sheet{width:100%;max-width:390px}
+}
+</style>
+</head>
+<body>
+
+<div class="mock-head">
+  <p class="mock-eyebrow">Donezo · design mock · v1</p>
+  <h1 class="mock-title">“Quiet” — a minimal-SaaS direction</h1>
+  <p class="mock-sub">Linear/Things lineage: hairline borders, one calm indigo accent used sparingly, a precise grotesk (Geist) with mono for dates &amp; labels, generous whitespace, and restrained motion. Below: the live app in light &amp; dark, then the edit and settings sheets.</p>
+</div>
+
+<div class="frames">
+
+  <!-- ============ LIGHT FRAME ============ -->
+  <div class="stage">
+    <div class="stage-label">Light · home</div>
+    <div class="device">
+      <div class="app">
+        <div class="statusbar"></div>
+        <header class="topbar">
+          <h1 class="wordmark">Done<b>zo</b></h1>
+          <button class="icon-btn" title="Search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </button>
+          <button class="icon-btn" title="Settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.6 7.6 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.3 1 2-3.4Z"/></svg>
+          </button>
+        </header>
+
+        <div class="scroll">
+          <!-- composer -->
+          <form class="composer" onsubmit="return false">
+            <input placeholder="Add a task…  try “pay rent friday”" />
+            <button class="ghost" type="button" title="Due date">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+            </button>
+            <button class="ghost" type="button" title="Attach image">
+              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 15-5-5L5 19"/></svg>
+            </button>
+            <button class="add" type="submit" title="Add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+          </form>
+
+          <!-- progress -->
+          <div class="summary">
+            <div class="row"><span class="left"><b>3</b> left · 5 done</span><span class="right">62%</span></div>
+            <div class="track"><div class="fill"></div></div>
+          </div>
+
+          <div class="sec">Today</div>
+
+          <div class="list">
+            <!-- normal w/ due today + tag -->
+            <div class="task">
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body">
+                  <p class="title">Finish the Q3 planning doc</p>
+                  <div class="meta">
+                    <span class="chip due today"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>Today</span>
+                    <span class="chip tag"><span class="dot"></span>work</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- overdue + recurrence + image thumb -->
+            <div class="task">
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body">
+                  <p class="title">Water the monstera</p>
+                  <div class="meta">
+                    <span class="chip due over"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>2d ago</span>
+                    <span class="chip rep" title="Repeats weekly"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span>
+                    <span class="chip tag g"><span class="dot"></span>home</span>
+                  </div>
+                </div>
+                <img class="thumb" alt="" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='42' height='42'><rect width='42' height='42' fill='%2316a34a' opacity='.18'/><circle cx='21' cy='21' r='9' fill='%2316a34a' opacity='.5'/></svg>" />
+              </div>
+            </div>
+
+            <!-- mid-swipe: revealing COMPLETE (left) -->
+            <div class="task swiped-right">
+              <div class="behind"><div class="act complete"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Complete</div></div>
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body">
+                  <p class="title">Book the dentist appointment</p>
+                  <div class="meta">
+                    <span class="chip due"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>Thu</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">Done</div>
+
+            <div class="task done">
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body"><p class="title">Reply to Maya’s email</p></div>
+              </div>
+            </div>
+            <div class="task done">
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body"><p class="title">Renew domain</p>
+                  <div class="meta"><span class="chip tag a"><span class="dot"></span>admin</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DARK FRAME ============ -->
+  <div class="stage">
+    <div class="stage-label">Dark · search + swipe</div>
+    <div class="device dark">
+      <div class="app dark">
+        <div class="statusbar"></div>
+        <header class="topbar">
+          <h1 class="wordmark">Done<b>zo</b></h1>
+          <button class="icon-btn" title="Search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </button>
+          <button class="icon-btn" title="Settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.6 7.6 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.3 1 2-3.4Z"/></svg>
+          </button>
+        </header>
+
+        <div class="scroll">
+          <div class="search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input value="design" />
+          </div>
+
+          <div class="summary">
+            <div class="row"><span class="left"><b>2</b> left · 4 done</span><span class="right">67%</span></div>
+            <div class="track"><div class="fill" style="width:67%"></div></div>
+          </div>
+
+          <div class="sec">Upcoming</div>
+
+          <div class="list">
+            <!-- mid-swipe: revealing DELETE (right) -->
+            <div class="task swiped-left">
+              <div class="behind"><div class="act delete">Delete<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg></div></div>
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body">
+                  <p class="title">Polish the design mock</p>
+                  <div class="meta">
+                    <span class="chip due today"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>Today</span>
+                    <span class="chip tag"><span class="dot"></span>design</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="task">
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body">
+                  <p class="title">Sketch design system tokens</p>
+                  <div class="meta">
+                    <span class="chip due"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>Jun 18</span>
+                    <span class="chip rep"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span>
+                    <span class="chip tag"><span class="dot"></span>design</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">Done</div>
+
+            <div class="task done">
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body"><p class="title">Pick the accent color</p>
+                  <div class="meta"><span class="chip tag"><span class="dot"></span>design</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="task done">
+              <div class="card">
+                <button class="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
+                <div class="body"><p class="title">Audit current CSS</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODALS ============ -->
+<div class="overlays">
+
+  <!-- EDIT TASK -->
+  <div class="stage">
+    <div class="stage-label">Edit task (light)</div>
+    <div class="sheet light">
+      <div class="sheet-head">
+        <h3>Edit task</h3>
+        <button class="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input class="input title-input" value="Finish the Q3 planning doc" />
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Due date</label>
+          <input class="input" value="Jun 15, 2026" />
+        </div>
+        <div class="field">
+          <label>Repeat</label>
+          <div class="seg">
+            <button>Off</button><button class="on">Wk</button><button>Mo</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Tags</label>
+        <div class="tags-field">
+          <span class="t-pill"><span class="dot"></span>work</span>
+          <span class="t-pill g"><span class="dot"></span>priority</span>
+          <input placeholder="Add tag…" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Image</label>
+        <div class="img-drop">
+          <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 15-5-5L5 19"/></svg></span>
+          <span>Drop an image or <u>browse</u></span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost">Cancel</button>
+        <button class="btn primary">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="stage">
+    <div class="stage-label">Settings (dark)</div>
+    <div class="sheet dark">
+      <div class="sheet-head">
+        <h3>Settings</h3>
+        <button class="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="set-row">
+        <div><div class="st">Clear completed at noon</div><div class="sh">Finished tasks are removed daily at 12:00.</div></div>
+        <div class="switch on"></div>
+      </div>
+      <div class="set-row">
+        <div><div class="st">Appearance</div><div class="sh">Follow system, or force light / dark.</div></div>
+        <div class="seg" style="width:150px;background:rgba(255,255,255,.05)">
+          <button class="on" style="background:#2a2a2e;color:#f4f4f5">Auto</button>
+          <button style="color:#a1a1aa">Light</button>
+          <button style="color:#a1a1aa">Dark</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

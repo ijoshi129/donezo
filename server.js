@@ -2,9 +2,6 @@ const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const { startCaldavSync } = require("./caldav-sync");
-const { startMacRemindersSync } = require("./mac-reminders-sync");
-const { generateVapidKeys, sendNotification } = require("./web-push");
 
 // Load a local .env file (KEY=value lines) before reading any config. Real
 // environment variables always win, and a missing .env is fine.
@@ -12,6 +9,13 @@ loadLocalEnv();
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
+// Serve the built React app (web/dist) when present; otherwise fall back to the
+// legacy in-repo static files. Override with WEB_ROOT.
+const WEB_ROOT =
+  process.env.WEB_ROOT ||
+  (require("node:fs").existsSync(path.join(ROOT, "web", "dist", "index.html"))
+    ? path.join(ROOT, "web", "dist")
+    : ROOT);
 const DATA_DIR = path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "tasks.json");
 const IMAGE_DIR = path.join(DATA_DIR, "images");
@@ -39,16 +43,9 @@ const DEFAULT_SETTINGS = {
   autoClearNoon: false,
 };
 
-const PUSH_DIGEST_HOUR = Math.min(23, Math.max(0, Number(process.env.PUSH_DIGEST_HOUR) || 8));
-// VAPID "sub" must be a valid mailto:/https: contact — Apple rejects fake
-// domains like localhost. Override with PUSH_SUBJECT (e.g. your email).
-const PUSH_SUBJECT = process.env.PUSH_SUBJECT || "mailto:donezo@donezo.app";
-
 let store = {
   lastNoonCleanup: null,
   settings: { ...DEFAULT_SETTINGS },
-  importedUids: [],
-  push: { vapid: null, subscriptions: [] },
   tasks: [],
 };
 let writeQueue = Promise.resolve();
@@ -88,11 +85,6 @@ async function start() {
   await migrateLegacyImages();
   await clearCompletedAfterNoon();
 
-  if (!store.push.vapid) {
-    store.push.vapid = generateVapidKeys();
-    await saveStore();
-  }
-
   const server = http.createServer((request, response) => {
     route(request, response).catch((error) => {
       console.error(error);
@@ -105,73 +97,6 @@ async function start() {
   });
 
   scheduleNextNoonCleanup();
-  scheduleNextDigest();
-
-  // Optional Apple Reminders -> Donezo sync (each is a no-op unless configured).
-  startCaldavSync({ store, saveStore, importTask: addImportedTask });
-  startMacRemindersSync({ store, saveStore, importTask: addImportedTask });
-}
-
-// Once a day, push a "due today" digest to all subscribed devices.
-function scheduleNextDigest() {
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(PUSH_DIGEST_HOUR, 0, 0, 0);
-  if (now >= next) next.setDate(next.getDate() + 1);
-  setTimeout(() => {
-    sendDueDigest()
-      .catch((error) => console.error("[push] digest error:", error.message))
-      .finally(scheduleNextDigest);
-  }, next.getTime() - now.getTime() + 1000);
-}
-
-async function sendDueDigest() {
-  const subs = store.push.subscriptions;
-  if (!subs.length) return;
-
-  const today = localDateKey(new Date());
-  const due = store.tasks.filter((t) => !t.completed && t.dueDate && t.dueDate <= today);
-  if (!due.length) return; // nothing due — don't nag
-
-  const names = due.slice(0, 3).map((t) => t.title).join(", ");
-  const payload = JSON.stringify({
-    title: `Donezo — ${due.length} due today`,
-    body: names + (due.length > 3 ? `, +${due.length - 3} more` : ""),
-    url: "/",
-  });
-
-  const gone = [];
-  for (const sub of subs) {
-    try {
-      const status = await sendNotification(sub, payload, store.push.vapid, PUSH_SUBJECT);
-      if (status === 404 || status === 410) gone.push(sub.endpoint);
-    } catch (error) {
-      console.error("[push] send failed:", error.message);
-    }
-  }
-  if (gone.length) {
-    store.push.subscriptions = subs.filter((s) => !gone.includes(s.endpoint));
-    await saveStore();
-  }
-}
-
-// Create a task from an imported Apple reminder (title + optional due date).
-function addImportedTask({ title, dueDate }) {
-  const clean = String(title || "").trim();
-  if (!clean) return null;
-  const task = {
-    id: crypto.randomUUID(),
-    title: clean.slice(0, 140),
-    image: null,
-    dueDate: normalizeDueDate(dueDate),
-    tags: [],
-    recurrence: "none",
-    completed: false,
-    createdAt: Date.now(),
-    completedAt: null,
-  };
-  store.tasks.push(task);
-  return task;
 }
 
 async function route(request, response) {
@@ -204,48 +129,6 @@ async function routeApi(request, response, url) {
     }
     await saveStore();
     sendJson(response, 200, { settings: store.settings });
-    return;
-  }
-
-  if (url.pathname === "/api/push/key" && request.method === "GET") {
-    sendJson(response, 200, { key: store.push.vapid ? store.push.vapid.publicKey : null });
-    return;
-  }
-
-  if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
-    const sub = await readJson(request);
-    if (!sub || !sub.endpoint || !sub.keys) {
-      sendJson(response, 400, { error: "Invalid subscription" });
-      return;
-    }
-    store.push.subscriptions = store.push.subscriptions.filter((s) => s.endpoint !== sub.endpoint);
-    store.push.subscriptions.push(sub);
-    await saveStore();
-    sendJson(response, 201, { ok: true });
-    return;
-  }
-
-  if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
-    const body = await readJson(request);
-    const endpoint = body && body.endpoint;
-    store.push.subscriptions = store.push.subscriptions.filter((s) => s.endpoint !== endpoint);
-    await saveStore();
-    sendJson(response, 200, { ok: true });
-    return;
-  }
-
-  if (url.pathname === "/api/push/test" && request.method === "POST") {
-    const payload = JSON.stringify({ title: "Donezo", body: "Notifications are working ✓", url: "/" });
-    let sent = 0;
-    for (const sub of store.push.subscriptions) {
-      try {
-        const status = await sendNotification(sub, payload, store.push.vapid, PUSH_SUBJECT);
-        if (status >= 200 && status < 300) sent += 1;
-      } catch (error) {
-        console.error("[push] test failed:", error.message);
-      }
-    }
-    sendJson(response, 200, { sent, total: store.push.subscriptions.length });
     return;
   }
 
@@ -286,9 +169,8 @@ async function routeApi(request, response, url) {
       id: crypto.randomUUID(),
       title: title.slice(0, 140),
       image: await persistImage(body.image, null),
-      dueDate: normalizeDueDate(body.dueDate),
       tags: normalizeTags(body.tags),
-      recurrence: normalizeRecurrence(body.recurrence),
+      priority: normalizePriority(body.priority),
       completed: false,
       createdAt: Date.now(),
       completedAt: null,
@@ -309,7 +191,6 @@ async function routeApi(request, response, url) {
     }
 
     const body = await readJson(request);
-    const wasCompleted = task.completed;
     if (typeof body.completed === "boolean") {
       task.completed = body.completed;
       task.completedAt = body.completed ? Date.now() : null;
@@ -320,35 +201,15 @@ async function routeApi(request, response, url) {
     if (Object.hasOwn(body, "image")) {
       task.image = await persistImage(body.image, task.image);
     }
-    if (Object.hasOwn(body, "dueDate")) {
-      task.dueDate = normalizeDueDate(body.dueDate);
-    }
     if (Object.hasOwn(body, "tags")) {
       task.tags = normalizeTags(body.tags);
     }
-    if (Object.hasOwn(body, "recurrence")) {
-      task.recurrence = normalizeRecurrence(body.recurrence);
-    }
-
-    // Completing a recurring task spawns its next occurrence.
-    let spawned = null;
-    if (!wasCompleted && task.completed && isRecurring(task.recurrence)) {
-      spawned = {
-        id: crypto.randomUUID(),
-        title: task.title,
-        image: await copyImageFile(task.image),
-        dueDate: advanceDueDate(task.dueDate, task.recurrence),
-        tags: [...(task.tags || [])],
-        recurrence: task.recurrence,
-        completed: false,
-        createdAt: Date.now(),
-        completedAt: null,
-      };
-      store.tasks.push(spawned);
+    if (Object.hasOwn(body, "priority")) {
+      task.priority = normalizePriority(body.priority);
     }
 
     await saveStore();
-    sendJson(response, 200, { task, spawned });
+    sendJson(response, 200, { task });
     return;
   }
 
@@ -377,9 +238,9 @@ async function routeApi(request, response, url) {
 
 async function serveStatic(response, requestedPath) {
   const cleanPath = requestedPath === "/" ? "/index.html" : decodeURIComponent(requestedPath);
-  const filePath = path.normalize(path.join(ROOT, cleanPath));
+  const filePath = path.normalize(path.join(WEB_ROOT, cleanPath));
 
-  if (!filePath.startsWith(ROOT) || filePath.includes(`${path.sep}data${path.sep}`)) {
+  if (!filePath.startsWith(WEB_ROOT)) {
     response.writeHead(403);
     response.end("Forbidden");
     return;
@@ -394,6 +255,13 @@ async function serveStatic(response, requestedPath) {
     response.end(body);
   } catch (error) {
     if (error.code === "ENOENT") {
+      // SPA fallback: serve index.html for navigation routes (no file ext).
+      if (!path.extname(filePath)) {
+        const body = await fs.readFile(path.join(WEB_ROOT, "index.html"));
+        response.writeHead(200, { "Content-Type": MIME_TYPES[".html"], "Cache-Control": "no-cache" });
+        response.end(body);
+        return;
+      }
       response.writeHead(404);
       response.end("Not found");
       return;
@@ -406,9 +274,15 @@ async function loadStore() {
   try {
     store = JSON.parse(await fs.readFile(DATA_FILE, "utf8"));
     if (!Array.isArray(store.tasks)) store.tasks = [];
-    if (!Array.isArray(store.importedUids)) store.importedUids = [];
-    if (!store.push || typeof store.push !== "object") store.push = { vapid: null, subscriptions: [] };
-    if (!Array.isArray(store.push.subscriptions)) store.push.subscriptions = [];
+    // Backfill fields added after a task was first stored, and drop removed ones.
+    for (const task of store.tasks) {
+      task.priority = normalizePriority(task.priority);
+      delete task.dueDate;
+      delete task.recurrence;
+    }
+    // Drop fields left by the removed Apple Reminders sync / push features.
+    delete store.importedUids;
+    delete store.push;
     store.settings = { ...DEFAULT_SETTINGS, ...(store.settings || {}) };
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
@@ -480,52 +354,10 @@ function normalizeTags(value) {
   return tags;
 }
 
-const RECURRENCES = new Set(["none", "daily", "weekly", "monthly"]);
+const PRIORITIES = new Set(["none", "low", "medium", "high"]);
 
-function normalizeRecurrence(value) {
-  return RECURRENCES.has(value) ? value : "none";
-}
-
-function isRecurring(recurrence) {
-  return recurrence === "daily" || recurrence === "weekly" || recurrence === "monthly";
-}
-
-function advanceDueDate(dueDate, recurrence) {
-  if (!dueDate) return null;
-  const [year, month, day] = dueDate.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  if (recurrence === "daily") date.setDate(date.getDate() + 1);
-  else if (recurrence === "weekly") date.setDate(date.getDate() + 7);
-  else if (recurrence === "monthly") date.setMonth(date.getMonth() + 1);
-  else return dueDate;
-  return localDateKey(date);
-}
-
-async function copyImageFile(reference) {
-  if (typeof reference !== "string" || !reference.startsWith(IMAGE_URL_PREFIX)) {
-    return reference ?? null;
-  }
-  const srcName = path.basename(reference.slice(IMAGE_URL_PREFIX.length));
-  const newName = `${crypto.randomUUID()}${path.extname(srcName) || ".png"}`;
-  try {
-    await fs.mkdir(IMAGE_DIR, { recursive: true });
-    await fs.copyFile(path.join(IMAGE_DIR, srcName), path.join(IMAGE_DIR, newName));
-    return `${IMAGE_URL_PREFIX}${newName}`;
-  } catch (error) {
-    if (error.code === "ENOENT") return null;
-    throw error;
-  }
-}
-
-function normalizeDueDate(value) {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-    return null;
-  }
-  return value;
+function normalizePriority(value) {
+  return PRIORITIES.has(value) ? value : "none";
 }
 
 function decodeImageDataUrl(value) {

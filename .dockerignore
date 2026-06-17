@@ -4,6 +4,7 @@
 .env.example
 data
 node_modules
+**/node_modules
 npm-debug.log*
 .DS_Store
 stitch_swipe_task_manager.zip
@@ -11,4 +12,10 @@ instructions.txt
 *.log
 tmp
 dist
+**/dist
+**/dev-dist
 coverage
+mocks
+Dockerfile
+.dockerignore
+compose.yaml

@@ -11,7 +11,7 @@ coverage/
 # Local task data can contain user content and attached images.
 data/
 
-# Local config — contains your iCloud app-specific password. Never commit.
+# Local config / overrides. Never commit.
 .env
 run.sh
 donezo.env
@@ -20,6 +20,5 @@ donezo.env
 instructions.txt
 stitch_swipe_task_manager.zip
 
-# Local launchd agent + its log (machine-specific)
-com.donezo.bridge.plist
-bridge.log
+# TypeScript incremental build cache
+*.tsbuildinfo

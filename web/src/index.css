@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+/* Dark mode is driven by a `.dark` class on <html> (set from system pref
+   in main.tsx, override-able later). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   DONEZO — "Graphite + Acid" design tokens
+   Warm ink monochrome + one surgical citron accent.
+   ============================================================ */
+:root {
+  --paper: #f4f1ea;
+  --sheet: #faf7f0;
+  --sheet-2: #ece7da;
+  --ink: #17150f;
+  --ink-2: #6a6353;
+  --ink-3: #a39c89;
+  --acid: #c9f23a;
+  --acid-deep: #aad81f;
+  --hair: #ddd6c6;
+  --hair-2: #cfc8b6;
+  --red: #c4361f;
+  --on-acid: #17150f;
+
+  /* priority — color-coded (vivid text/icon + soft tint background) */
+  --prio-high: #cf3a22;
+  --prio-high-soft: rgba(207, 58, 34, 0.12);
+  --prio-med: #b5800c;
+  --prio-med-soft: rgba(181, 128, 12, 0.15);
+  --prio-low: #3a6ea5;
+  --prio-low-soft: rgba(58, 110, 165, 0.13);
+}
+
+.dark {
+  --paper: #16140f;
+  --sheet: #1f1c15;
+  --sheet-2: #13110c;
+  --ink: #efe9d8;
+  --ink-2: #a39a82;
+  --ink-3: #6f6957;
+  --acid: #c9f23a;
+  --acid-deep: #c9f23a;
+  --hair: #2c281e;
+  --hair-2: #3a352a;
+  --red: #e8634c;
+  --on-acid: #16140f;
+
+  --prio-high: #f0664e;
+  --prio-high-soft: rgba(240, 102, 78, 0.16);
+  --prio-med: #e0ab44;
+  --prio-med-soft: rgba(224, 171, 68, 0.16);
+  --prio-low: #79a8da;
+  --prio-low-soft: rgba(121, 168, 218, 0.16);
+}
+
+/* Expose tokens to Tailwind utilities: bg-paper, text-ink, border-hair,
+   font-display, font-mono, etc. */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-sheet-2: var(--sheet-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-acid: var(--acid);
+  --color-acid-deep: var(--acid-deep);
+  --color-hair: var(--hair);
+  --color-hair-2: var(--hair-2);
+  --color-red: var(--red);
+  --color-on-acid: var(--on-acid);
+  --color-prio-high: var(--prio-high);
+  --color-prio-high-soft: var(--prio-high-soft);
+  --color-prio-med: var(--prio-med);
+  --color-prio-med-soft: var(--prio-med-soft);
+  --color-prio-low: var(--prio-low);
+  --color-prio-low-soft: var(--prio-low-soft);
+
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+/* ---- reusable component classes (the distinctive bits) ---- */
+@layer components {
+  /* tiny uppercase mono label */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* hard offset shadow in ink */
+  .shadow-hard {
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+  .shadow-hard-sm {
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+}
+
+/* icon defaults */
+.icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
