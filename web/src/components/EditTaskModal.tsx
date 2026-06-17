@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import type { Priority, Task } from "../types";
+import type { List, Priority, Subtask, Task } from "../types";
 import { Modal } from "./Modal";
-import { FlagIcon, ImageIcon } from "./icons";
+import { CheckIcon, FlagIcon, ImageIcon, PinIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { PRIORITY_FILL } from "../lib/priority";
 
 export interface TaskValues {
   title: string;
+  notes: string;
   tags: string[];
   priority: Priority;
+  subtasks: Subtask[];
+  pinned: boolean;
+  listId: string;
   image: string | null;
 }
 
 interface Props {
   open: boolean;
   task: Task | null; // null => create mode
+  lists: List[];
+  defaultListId: string;
   onClose: () => void;
   onSave: (id: string, patch: Partial<Task>) => void;
   onCreate: (values: TaskValues) => void;
@@ -27,10 +33,26 @@ const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "high", label: "High" },
 ];
 
-export function EditTaskModal({ open, task, onClose, onSave, onCreate }: Props) {
+let tmp = 0;
+const tmpId = () => `st-${Date.now()}-${tmp++}`;
+
+export function EditTaskModal({
+  open,
+  task,
+  lists,
+  defaultListId,
+  onClose,
+  onSave,
+  onCreate,
+}: Props) {
   const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [priority, setPriority] = useState<Priority>("none");
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [subDraft, setSubDraft] = useState("");
+  const [pinned, setPinned] = useState(false);
+  const [listId, setListId] = useState(defaultListId);
   const [tagDraft, setTagDraft] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -39,11 +61,16 @@ export function EditTaskModal({ open, task, onClose, onSave, onCreate }: Props) 
   useEffect(() => {
     if (!open) return;
     setTitle(task?.title ?? "");
+    setNotes(task?.notes ?? "");
     setTags(task?.tags ?? []);
     setPriority(task?.priority ?? "none");
+    setSubtasks(task?.subtasks ?? []);
+    setSubDraft("");
+    setPinned(task?.pinned ?? false);
+    setListId(task?.listId ?? defaultListId);
     setTagDraft("");
     setImage(task?.image ?? null);
-  }, [open, task]);
+  }, [open, task, defaultListId]);
 
   async function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -61,7 +88,6 @@ export function EditTaskModal({ open, task, onClose, onSave, onCreate }: Props) 
     if (t && !tags.includes(t)) setTags([...tags, t]);
     setTagDraft("");
   }
-
   function onTagKey(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
@@ -71,13 +97,24 @@ export function EditTaskModal({ open, task, onClose, onSave, onCreate }: Props) 
     }
   }
 
+  function addSubtask() {
+    const t = subDraft.trim().slice(0, 140);
+    if (!t) return;
+    setSubtasks([...subtasks, { id: tmpId(), title: t, done: false }]);
+    setSubDraft("");
+  }
+
   function save() {
     const trimmed = title.trim();
     if (!trimmed) return;
     const values: TaskValues = {
       title: trimmed,
+      notes: notes.trim(),
       tags,
       priority,
+      subtasks: subtasks.filter((s) => s.title.trim()),
+      pinned,
+      listId,
       image, // existing /api/images URL is kept; data: URL replaces; null clears
     };
     if (task) onSave(task.id, values);
@@ -102,6 +139,34 @@ export function EditTaskModal({ open, task, onClose, onSave, onCreate }: Props) 
           />
         </Field>
 
+        <div className="flex gap-3">
+          <Field label="List" className="min-w-0 flex-1">
+            <select
+              value={listId}
+              onChange={(e) => setListId(e.target.value)}
+              className="w-full rounded-md border-[1.8px] border-ink bg-transparent px-3 py-2.5 font-mono text-sm text-ink outline-none focus:shadow-hard-sm"
+            >
+              {lists.map((l) => (
+                <option key={l.id} value={l.id} className="bg-sheet text-ink">
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Pin">
+            <button
+              type="button"
+              onClick={() => setPinned((v) => !v)}
+              aria-pressed={pinned}
+              className={`grid size-[42px] place-items-center rounded-md border-[1.8px] border-ink ${
+                pinned ? "bg-acid text-on-acid" : "text-ink-2"
+              }`}
+            >
+              <PinIcon className="icon size-[18px]" />
+            </button>
+          </Field>
+        </div>
+
         <Field label="Priority">
           <div className="flex overflow-hidden rounded-md border-[1.8px] border-ink">
             {PRIORITIES.map((p) => (
@@ -119,6 +184,78 @@ export function EditTaskModal({ open, task, onClose, onSave, onCreate }: Props) 
                 {p.label}
               </button>
             ))}
+          </div>
+        </Field>
+
+        <Field label="Notes">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            maxLength={4000}
+            placeholder="Add details…"
+            className="w-full resize-y rounded-md border-[1.8px] border-ink bg-transparent px-3 py-2.5 font-display text-sm text-ink outline-none focus:shadow-hard-sm placeholder:text-ink-3"
+          />
+        </Field>
+
+        <Field label="Subtasks">
+          <div className="flex flex-col gap-1.5">
+            {subtasks.map((st) => (
+              <div key={st.id} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSubtasks(
+                      subtasks.map((s) =>
+                        s.id === st.id ? { ...s, done: !s.done } : s,
+                      ),
+                    )
+                  }
+                  className={`grid size-[18px] shrink-0 place-items-center rounded-[5px] border-2 border-ink ${
+                    st.done ? "bg-ink text-acid" : "text-transparent"
+                  }`}
+                >
+                  <CheckIcon className="icon size-2.5" strokeWidth={3} />
+                </button>
+                <input
+                  value={st.title}
+                  onChange={(e) =>
+                    setSubtasks(
+                      subtasks.map((s) =>
+                        s.id === st.id ? { ...s, title: e.target.value } : s,
+                      ),
+                    )
+                  }
+                  className={`min-w-0 flex-1 bg-transparent font-display text-sm outline-none ${
+                    st.done ? "text-ink-3 line-through" : "text-ink"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSubtasks(subtasks.filter((s) => s.id !== st.id))}
+                  aria-label="Remove subtask"
+                  className="grid size-6 shrink-0 place-items-center rounded text-ink-3 hover:text-ink"
+                >
+                  <svg viewBox="0 0 24 24" className="icon size-3.5">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            <input
+              value={subDraft}
+              onChange={(e) => setSubDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addSubtask();
+                }
+              }}
+              onBlur={addSubtask}
+              maxLength={140}
+              placeholder="add a step…"
+              className="rounded-md border-[1.8px] border-dashed border-ink-3 bg-transparent px-3 py-2 font-display text-sm text-ink outline-none focus:border-ink placeholder:text-ink-3"
+            />
           </div>
         </Field>
 

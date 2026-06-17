@@ -1,4 +1,4 @@
-import type { NewTask, Task } from "./types";
+import type { List, NewTask, Task } from "./types";
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -52,6 +52,23 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }).then((r) => r.settings),
+
+  listLists: () => req<{ lists: List[] }>("/api/lists").then((r) => r.lists),
+
+  createList: (name: string) =>
+    req<{ list: List }>("/api/lists", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }).then((r) => r.list),
+
+  renameList: (id: string, name: string) =>
+    req<{ list: List }>(`/api/lists/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }).then((r) => r.list),
+
+  deleteList: (id: string) =>
+    req<{ ok: true }>(`/api/lists/${id}`, { method: "DELETE" }),
 };
 
 export interface Settings {

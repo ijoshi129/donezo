@@ -28,6 +28,7 @@ import { SortableTask } from "./components/SortableTask";
 import { EditTaskModal } from "./components/EditTaskModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { FilterModal } from "./components/FilterModal";
+import { ListsNav, ListChips } from "./components/Lists";
 import { Lightbox } from "./components/Lightbox";
 import {
   FilterIcon,
@@ -39,6 +40,8 @@ import {
 import { PRIORITY_FILL } from "./lib/priority";
 
 const TASKS_KEY = ["tasks"] as const;
+const LISTS_KEY = ["lists"] as const;
+const INBOX_ID = "inbox";
 
 export default function App() {
   const qc = useQueryClient();
@@ -52,10 +55,41 @@ export default function App() {
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [priorityFilters, setPriorityFilters] = useState<Priority[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [selectedList, setSelectedList] = useState<string>("all");
 
   const { data: tasks = [], isLoading, isError, error } = useQuery({
     queryKey: TASKS_KEY,
     queryFn: api.listTasks,
+  });
+  const { data: lists = [] } = useQuery({
+    queryKey: LISTS_KEY,
+    queryFn: api.listLists,
+  });
+
+  // New tasks land in the selected list (or Inbox when viewing "all").
+  const createListId = selectedList === "all" ? INBOX_ID : selectedList;
+  const invalidateLists = () =>
+    qc.invalidateQueries({ queryKey: LISTS_KEY });
+
+  const createList = useMutation({
+    mutationFn: (name: string) => api.createList(name),
+    onSuccess: (list) => {
+      invalidateLists();
+      setSelectedList(list.id);
+    },
+  });
+  const renameList = useMutation({
+    mutationFn: (vars: { id: string; name: string }) =>
+      api.renameList(vars.id, vars.name),
+    onSuccess: invalidateLists,
+  });
+  const removeList = useMutation({
+    mutationFn: (id: string) => api.deleteList(id),
+    onSuccess: (_r, id) => {
+      invalidateLists();
+      qc.invalidateQueries({ queryKey: TASKS_KEY }); // orphans moved to Inbox
+      if (selectedList === id) setSelectedList("all");
+    },
   });
 
   // Shared optimistic plumbing: snapshot the list, apply `change` immediately,
@@ -85,9 +119,13 @@ export default function App() {
         {
           id: `temp-${crypto.randomUUID()}`,
           title: vars.title,
+          notes: vars.notes ?? "",
           image: vars.image ?? null,
           tags: vars.tags ?? [],
           priority: vars.priority ?? "none",
+          subtasks: vars.subtasks ?? [],
+          pinned: vars.pinned ?? false,
+          listId: vars.listId ?? createListId,
           completed: false,
           createdAt: Date.now(),
           completedAt: null,
@@ -243,7 +281,7 @@ export default function App() {
   };
   const handleAdd = (vars: NewTask) => {
     flush();
-    create.mutate(vars);
+    create.mutate({ ...vars, listId: vars.listId ?? createListId });
   };
   const handleSave = (id: string, patch: Partial<Task>) => {
     flush();
@@ -275,6 +313,7 @@ export default function App() {
   const { open, done } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const match = (t: Task) =>
+      (selectedList === "all" || t.listId === selectedList) &&
       (!q ||
         t.title.toLowerCase().includes(q) ||
         t.tags.some((tag) => tag.toLowerCase().includes(q))) &&
@@ -288,7 +327,7 @@ export default function App() {
       (t.completed ? done : open).push(t);
     }
     return { open, done };
-  }, [tasks, query, tagFilters, priorityFilters]);
+  }, [tasks, query, tagFilters, priorityFilters, selectedList]);
 
   const toggleSearch = () => {
     setSearchOpen((v) => !v);
@@ -309,6 +348,13 @@ export default function App() {
 
   const content = (
     <>
+      <ListChips
+        lists={lists}
+        selected={selectedList}
+        onSelect={setSelectedList}
+        onCreate={(name) => createList.mutate(name)}
+      />
+
       {searchOpen ? (
         <div className="flex items-center gap-2.5 rounded-lg border-[1.8px] border-ink bg-sheet px-3.5 py-2.5">
           <SearchIcon className="icon size-[17px] text-ink-2" />
@@ -437,6 +483,18 @@ export default function App() {
         >
           <FilterIcon className="icon size-[18px]" />
         </SidebarItem>
+
+        <div className="mt-3 overflow-y-auto">
+          <ListsNav
+            lists={lists}
+            selected={selectedList}
+            onSelect={setSelectedList}
+            onCreate={(name) => createList.mutate(name)}
+            onRename={(id, name) => renameList.mutate({ id, name })}
+            onDelete={(id) => removeList.mutate(id)}
+          />
+        </div>
+
         <div className="mt-auto" />
         <SidebarItem onClick={() => setSettingsOpen(true)} label="Settings">
           <SettingsIcon className="icon size-[18px]" />
@@ -482,6 +540,8 @@ export default function App() {
       <EditTaskModal
         open={creating || editing !== null}
         task={editing}
+        lists={lists}
+        defaultListId={createListId}
         onClose={() => {
           setEditing(null);
           setCreating(false);

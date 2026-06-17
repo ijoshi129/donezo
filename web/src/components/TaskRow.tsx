@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { motion, useMotionValue, useTransform, animate } from "motion/react";
 import { useDrag } from "@use-gesture/react";
 import type { Priority, Task } from "../types";
-import { CheckIcon, FlagIcon, TrashIcon } from "./icons";
+import { CheckIcon, FlagIcon, NoteIcon, PinIcon, TrashIcon } from "./icons";
 import { PRIORITY_LABEL, PRIORITY_SOFT } from "../lib/priority";
 
 interface Props {
@@ -147,11 +147,16 @@ export function TaskRow({
               task.completed ? "text-ink-3 line-through" : "text-ink"
             }`}
           >
+            {task.pinned && (
+              <PinIcon className="icon mr-1.5 inline size-3.5 align-[-2px] text-acid-deep" />
+            )}
             {task.title}
           </p>
 
           {(task.tags.length > 0 ||
-            (task.priority && task.priority !== "none")) && (
+            (task.priority && task.priority !== "none") ||
+            task.subtasks.length > 0 ||
+            !!task.notes) && (
             <div
               className={`mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[11px] text-ink-2 ${
                 task.completed ? "opacity-50" : ""
@@ -198,6 +203,20 @@ export function TaskRow({
                   </button>
                 );
               })}
+
+              {task.subtasks.length > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <CheckIcon className="icon size-3" />
+                  {task.subtasks.filter((s) => s.done).length}/
+                  {task.subtasks.length}
+                </span>
+              )}
+
+              {task.notes && (
+                <span className="inline-flex" title="Has notes">
+                  <NoteIcon className="icon size-3.5" />
+                </span>
+              )}
             </div>
           )}
         </div>

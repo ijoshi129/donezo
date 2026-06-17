@@ -20,6 +20,25 @@ export const SettingsIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const NoteIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5" />
+  </svg>
+);
+
+export const PinIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M9 3h6l-1 2.5v4L17 13H7l3-3.5v-4z" />
+    <path d="M12 13v8" />
+  </svg>
+);
+
+export const ListIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
 export const MicIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <rect x="9" y="2" width="6" height="12" rx="3" />
