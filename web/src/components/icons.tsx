@@ -20,6 +20,13 @@ export const SettingsIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const MicIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <rect x="9" y="2" width="6" height="12" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+  </svg>
+);
+
 export const ImageIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <rect x="3" y="5" width="18" height="14" rx="2" />

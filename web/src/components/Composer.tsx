@@ -1,15 +1,17 @@
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
+  type ClipboardEvent,
   type FormEvent,
   type RefObject,
 } from "react";
 import type { NewTask, Priority } from "../types";
-import { FlagIcon, ImageIcon, PlusIcon } from "./icons";
+import { FlagIcon, ImageIcon, MicIcon, PlusIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
-import { parseTags } from "../lib/tags";
-import { PRIORITY_FILL, PRIORITY_TEXT } from "../lib/priority";
+import { parseInput } from "../lib/tags";
+import { PRIORITY_FILL, PRIORITY_SOFT, PRIORITY_TEXT } from "../lib/priority";
 
 interface Props {
   onAdd: (task: NewTask) => void;
@@ -23,20 +25,49 @@ const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "high", label: "High" },
 ];
 
+// Web Speech API — present on Chrome/Safari (incl. iOS) under a webkit prefix.
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start: () => void;
+  stop: () => void;
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+};
+const SpeechRecognition =
+  typeof window !== "undefined"
+    ? ((window as unknown as Record<string, unknown>).SpeechRecognition ??
+        (window as unknown as Record<string, unknown>).webkitSpeechRecognition)
+    : undefined;
+const voiceSupported = Boolean(SpeechRecognition);
+
 export function Composer({ onAdd, inputRef }: Props) {
   const [title, setTitle] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [priority, setPriority] = useState<Priority>("none");
   const [prioOpen, setPrioOpen] = useState(false);
+  const [listening, setListening] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const recognition = useRef<SpeechRecognitionLike | null>(null);
 
-  // Live-preview the "#tag" tokens detected in the input.
-  const parsed = useMemo(() => parseTags(title), [title]);
+  // Live-parse "#tag" and "!priority" tokens from the input.
+  const parsed = useMemo(() => parseInput(title), [title]);
+  // A "!priority" in the text overrides the flag selection.
+  const effectivePriority = parsed.priority ?? priority;
+
+  useEffect(() => () => recognition.current?.stop(), []);
 
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!parsed.title) return;
-    onAdd({ title: parsed.title, tags: parsed.tags, image, priority });
+    onAdd({
+      title: parsed.title,
+      tags: parsed.tags,
+      image,
+      priority: effectivePriority,
+    });
     setTitle("");
     setImage(null);
     setPriority("none");
@@ -53,6 +84,42 @@ export function Composer({ onAdd, inputRef }: Props) {
     }
   }
 
+  // Paste a screenshot/image straight into the composer.
+  async function onPaste(e: ClipboardEvent<HTMLInputElement>) {
+    const item = [...e.clipboardData.items].find((i) =>
+      i.type.startsWith("image/"),
+    );
+    const file = item?.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    try {
+      setImage(await fileToDataUrl(file));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function toggleVoice() {
+    if (!SpeechRecognition) return;
+    if (listening) {
+      recognition.current?.stop();
+      return;
+    }
+    const rec = new (SpeechRecognition as new () => SpeechRecognitionLike)();
+    rec.lang = navigator.language || "en-US";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (ev) => {
+      const text = ev.results[0]?.[0]?.transcript ?? "";
+      if (text) setTitle((t) => (t ? `${t} ${text}` : text));
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognition.current = rec;
+    setListening(true);
+    rec.start();
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <form
@@ -63,10 +130,24 @@ export function Composer({ onAdd, inputRef }: Props) {
           ref={inputRef}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onPaste={onPaste}
           maxLength={140}
-          placeholder="Add a task…"
+          placeholder="Add a task…  #tag  !high"
           className="min-w-0 flex-1 bg-transparent py-1 font-display text-[15px] font-medium text-ink outline-none placeholder:text-ink-3"
         />
+
+        {voiceSupported && (
+          <button
+            type="button"
+            title={listening ? "Stop" : "Voice input"}
+            onClick={toggleVoice}
+            className={`grid size-9 place-items-center rounded-md hover:bg-sheet-2 ${
+              listening ? "animate-pulse text-red" : "text-ink-2"
+            }`}
+          >
+            <MicIcon className="icon size-[18px]" />
+          </button>
+        )}
 
         {/* priority */}
         <div className="relative">
@@ -74,7 +155,7 @@ export function Composer({ onAdd, inputRef }: Props) {
             type="button"
             title="Priority"
             onClick={() => setPrioOpen((o) => !o)}
-            className={`grid size-9 place-items-center rounded-md hover:bg-sheet-2 ${PRIORITY_TEXT[priority]}`}
+            className={`grid size-9 place-items-center rounded-md hover:bg-sheet-2 ${PRIORITY_TEXT[effectivePriority]}`}
           >
             <FlagIcon className="icon size-[18px]" />
           </button>
@@ -160,8 +241,16 @@ export function Composer({ onAdd, inputRef }: Props) {
         </div>
       )}
 
-      {parsed.tags.length > 0 && (
+      {(parsed.tags.length > 0 || parsed.priority) && (
         <div className="flex flex-wrap items-center gap-1.5 self-start pl-0.5">
+          {parsed.priority && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-[5px] px-1.5 py-0.5 font-mono text-[11px] font-semibold ${PRIORITY_SOFT[parsed.priority]}`}
+            >
+              <FlagIcon className="icon size-3" />
+              {parsed.priority === "medium" ? "med" : parsed.priority}
+            </span>
+          )}
           {parsed.tags.map((tag) => (
             <span
               key={tag}
