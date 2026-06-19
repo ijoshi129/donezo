@@ -1,5 +1,15 @@
 import type { List, NewTask, Task } from "./types";
 
+// Error thrown by req() — carries the HTTP status when the server responded
+// (absent for a network failure / offline), so callers can tell them apart.
+export class ApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -12,7 +22,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(detail || `${res.status} ${res.statusText}`);
+    throw new ApiError(detail || `${res.status} ${res.statusText}`, res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -20,7 +30,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   listTasks: () => req<{ tasks: Task[] }>("/api/tasks").then((r) => r.tasks),
 
-  createTask: (task: NewTask) =>
+  createTask: (task: NewTask & { clientId?: string }) =>
     req<{ task: Task }>("/api/tasks", {
       method: "POST",
       body: JSON.stringify(task),
@@ -69,8 +79,15 @@ export const api = {
 
   deleteList: (id: string) =>
     req<{ ok: true }>(`/api/lists/${id}`, { method: "DELETE" }),
+
+  setTagColor: (tag: string, color: number | null) =>
+    req<{ settings: Settings }>("/api/tag-color", {
+      method: "POST",
+      body: JSON.stringify({ tag, color }),
+    }).then((r) => r.settings),
 };
 
 export interface Settings {
   autoClearNoon: boolean;
+  tagColors: Record<string, number>;
 }

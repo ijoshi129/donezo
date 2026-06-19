@@ -12,7 +12,7 @@ import { FlagIcon, ImageIcon, MicIcon, PlusIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { parseInput } from "../lib/tags";
 import { PRIORITY_FILL, PRIORITY_SOFT, PRIORITY_TEXT } from "../lib/priority";
-import { tagDot } from "../lib/tagcolor";
+import { useTagDot } from "./TagColor";
 
 interface Props {
   onAdd: (task: NewTask) => void;
@@ -52,6 +52,7 @@ export function Composer({ onAdd, inputRef }: Props) {
   const [listening, setListening] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const recognition = useRef<SpeechRecognitionLike | null>(null);
+  const tagDot = useTagDot();
 
   // Live-parse "#tag" and "!priority" tokens from the input.
   const parsed = useMemo(() => parseInput(title), [title]);

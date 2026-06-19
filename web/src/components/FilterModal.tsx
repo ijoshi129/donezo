@@ -2,7 +2,7 @@ import type { Priority } from "../types";
 import { Modal } from "./Modal";
 import { FlagIcon } from "./icons";
 import { PRIORITY_FILL, PRIORITY_LABEL } from "../lib/priority";
-import { tagDot } from "../lib/tagcolor";
+import { useTagDot } from "./TagColor";
 
 const PRIORITY_OPTIONS: Exclude<Priority, "none">[] = ["high", "medium", "low"];
 
@@ -28,6 +28,7 @@ export function FilterModal({
   onClear,
 }: Props) {
   const any = tagFilters.length > 0 || priorityFilters.length > 0;
+  const tagDot = useTagDot();
 
   return (
     <Modal open={open} onOpenChange={(o) => !o && onClose()} title="Filter">

@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -41,7 +47,10 @@ import {
   SettingsIcon,
 } from "./components/icons";
 import { PRIORITY_FILL } from "./lib/priority";
-import { tagDot } from "./lib/tagcolor";
+import { autoIndex, dotClass } from "./lib/tagcolor";
+import { TagColorProvider } from "./components/TagColor";
+import { ChevronIcon } from "./components/icons";
+import { outbox, applyOps } from "./lib/outbox";
 
 const TASKS_KEY = ["tasks"] as const;
 const LISTS_KEY = ["lists"] as const;
@@ -61,15 +70,62 @@ export default function App() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<string>("all");
+  const [doneCollapsed, setDoneCollapsed] = useState(
+    () => localStorage.getItem("donezo:done-collapsed") === "1",
+  );
+  const toggleDone = () =>
+    setDoneCollapsed((v) => {
+      localStorage.setItem("donezo:done-collapsed", v ? "0" : "1");
+      return !v;
+    });
 
-  const { data: tasks = [], isLoading, isError, error } = useQuery({
+  const { data: serverTasks = [], isLoading, isError, error } = useQuery({
     queryKey: TASKS_KEY,
     queryFn: api.listTasks,
   });
+  // Pending offline writes overlaid on the server snapshot (always shown).
+  const pendingOps = useSyncExternalStore(outbox.subscribe, outbox.getOps);
+  const tasks = useMemo(
+    () => applyOps(serverTasks, pendingOps),
+    [serverTasks, pendingOps],
+  );
+  const [online, setOnline] = useState(
+    () => typeof navigator === "undefined" || navigator.onLine,
+  );
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+  // Configure reconcile callbacks, then start replay triggers (after config so a
+  // replay never runs before the callbacks exist).
+  useEffect(() => {
+    outbox.start({
+      onDrained: () => qc.invalidateQueries({ queryKey: TASKS_KEY }),
+      reconcileCreate: (_tempId, real) =>
+        qc.setQueryData<Task[]>(TASKS_KEY, (prev) => {
+          const list = prev ?? [];
+          return list.some((t) => t.id === real.id) ? list : [real, ...list];
+        }),
+    });
+  }, [qc]);
+
   const { data: lists = [] } = useQuery({
     queryKey: LISTS_KEY,
     queryFn: api.listLists,
   });
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: api.getSettings,
+  });
+  const tagColors = settings?.tagColors ?? {};
+  const tagDot = (tag: string) =>
+    dotClass(typeof tagColors[tag] === "number" ? tagColors[tag] : autoIndex(tag));
 
   // New tasks land in the selected list (or Inbox when viewing "all").
   const createListId = selectedList === "all" ? INBOX_ID : selectedList;
@@ -116,62 +172,11 @@ export default function App() {
   };
   const settle = () => qc.invalidateQueries({ queryKey: TASKS_KEY });
 
-  const create = useMutation({
-    mutationFn: (vars: NewTask) => api.createTask(vars),
-    onMutate: (vars) =>
-      patchCache((prev) => [
-        ...prev,
-        {
-          id: `temp-${crypto.randomUUID()}`,
-          title: vars.title,
-          notes: vars.notes ?? "",
-          image: vars.image ?? null,
-          tags: vars.tags ?? [],
-          priority: vars.priority ?? "none",
-          pinned: vars.pinned ?? false,
-          listId: vars.listId ?? createListId,
-          completed: false,
-          createdAt: Date.now(),
-          completedAt: null,
-        },
-      ])(),
-    onError: rollback,
-    onSettled: settle,
-  });
-
-  const toggle = useMutation({
-    mutationFn: (task: Task) =>
-      api.updateTask(task.id, { completed: !task.completed }),
-    onMutate: (task) =>
-      patchCache((prev) =>
-        prev.map((t) =>
-          t.id === task.id
-            ? {
-                ...t,
-                completed: !t.completed,
-                completedAt: t.completed ? null : Date.now(),
-              }
-            : t,
-        ),
-      )(),
-    onError: rollback,
-    onSettled: settle,
-  });
-
-  const edit = useMutation({
-    mutationFn: (vars: { id: string; patch: Partial<Task> }) =>
-      api.updateTask(vars.id, vars.patch),
-    onMutate: (vars) =>
-      patchCache((prev) =>
-        prev.map((t) => (t.id === vars.id ? { ...t, ...vars.patch } : t)),
-      )(),
-    onError: rollback,
-    onSettled: settle,
-  });
-
+  // Reorder stays a normal online mutation (manual order is a server concept;
+  // temp ids of not-yet-synced tasks are filtered out of the payload).
   const reorder = useMutation({
-    // `ordered` is the full task list already in its new order.
-    mutationFn: (ordered: Task[]) => api.reorder(ordered.map((t) => t.id)),
+    mutationFn: (ordered: Task[]) =>
+      api.reorder(ordered.filter((t) => !t.id.startsWith("temp-")).map((t) => t.id)),
     onMutate: (ordered) => patchCache(() => ordered)(),
     onError: rollback,
     onSettled: settle,
@@ -191,105 +196,66 @@ export default function App() {
     const from = ids.indexOf(active.id as string);
     const to = ids.indexOf(over.id as string);
     if (from < 0 || to < 0) return;
-    const newOpen = arrayMove(open, from, to);
-    flush();
-    // Persist as: reordered open tasks first, then the done tasks unchanged.
-    reorder.mutate([...newOpen, ...done]);
+    reorder.mutate([...arrayMove(open, from, to), ...done]);
   }
 
-  // ---- Undo: a marked-done / deleted action applies to the cache instantly
-  // but its server call is held for UNDO_MS, so Undo just restores the cache
-  // (and deleting never destroys the image file until the window passes). ----
-  type Pending =
-    | { kind: "complete"; task: Task }
-    | { kind: "delete"; task: Task; index: number };
-  const pending = useRef<Pending | null>(null);
-  const timer = useRef<number | null>(null);
-  const [toastKind, setToastKind] = useState<Pending["kind"] | null>(null);
+  // ---- Writes go through the offline outbox: applied optimistically via the
+  // overlay, held UNDO_MS for undo when marking done / deleting, replayed when
+  // possible. Undo just cancels the queued op. ----
   const UNDO_MS = 5000;
+  const [toastKind, setToastKind] = useState<"complete" | "delete" | null>(null);
+  const lastUndo = useRef<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
 
-  const getTasks = () => qc.getQueryData<Task[]>(TASKS_KEY) ?? [];
-  const setTasks = (next: Task[]) => qc.setQueryData<Task[]>(TASKS_KEY, next);
-
-  // Commit the held action to the server (also called before any other action).
-  // The optimistic cache already matches the committed result, so we avoid a
-  // refetch on success (which could revert a newly-deferred action); we only
-  // resync on error.
-  function flush() {
-    const p = pending.current;
-    if (!p) return;
-    pending.current = null;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    setToastKind(null);
-    const resync = () => qc.invalidateQueries({ queryKey: TASKS_KEY });
-    const call =
-      p.kind === "complete"
-        ? api.updateTask(p.task.id, { completed: true })
-        : api.deleteTask(p.task.id);
-    call.then(() => {}, resync);
+  function showToast(kind: "complete" | "delete", opId: string) {
+    lastUndo.current = opId;
+    setToastKind(kind);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => {
+      setToastKind(null);
+      lastUndo.current = null;
+    }, UNDO_MS);
   }
-
-  function defer(p: Pending) {
-    flush(); // commit any prior held action first
-    pending.current = p;
-    if (p.kind === "complete") {
-      setTasks(
-        getTasks().map((t) =>
-          t.id === p.task.id
-            ? { ...t, completed: true, completedAt: Date.now() }
-            : t,
-        ),
-      );
-    } else {
-      setTasks(getTasks().filter((t) => t.id !== p.task.id));
-    }
-    setToastKind(p.kind);
-    timer.current = window.setTimeout(flush, UNDO_MS);
-  }
-
   function undo() {
-    const p = pending.current;
-    if (!p) return;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    pending.current = null;
+    if (lastUndo.current) outbox.cancel(lastUndo.current);
+    lastUndo.current = null;
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastKind(null);
-    if (p.kind === "complete") {
-      setTasks(
-        getTasks().map((t) =>
-          t.id === p.task.id
-            ? { ...t, completed: false, completedAt: null }
-            : t,
-        ),
-      );
-    } else {
-      const next = getTasks().slice();
-      next.splice(Math.min(p.index, next.length), 0, p.task);
-      setTasks(next);
-    }
   }
 
-  // Action handlers (each flushes any held action so refetches can't revert it).
   const handleToggle = (task: Task) => {
     if (task.completed) {
-      flush();
-      toggle.mutate(task); // un-completing is immediate, no undo toast
+      outbox.updateTask(task.id, { completed: false, completedAt: null });
     } else {
-      defer({ kind: "complete", task });
+      const opId = outbox.updateTask(
+        task.id,
+        { completed: true, completedAt: Date.now() },
+        UNDO_MS,
+      );
+      showToast("complete", opId);
     }
   };
   const handleDelete = (task: Task) => {
-    const index = getTasks().findIndex((t) => t.id === task.id);
-    defer({ kind: "delete", task, index });
+    const opId = outbox.deleteTask(task.id, UNDO_MS);
+    if (opId) showToast("delete", opId);
   };
   const handleAdd = (vars: NewTask) => {
-    flush();
-    create.mutate({ ...vars, listId: vars.listId ?? createListId });
+    outbox.createTask({
+      id: `temp-${crypto.randomUUID()}`,
+      title: vars.title,
+      notes: vars.notes ?? "",
+      image: vars.image ?? null,
+      tags: vars.tags ?? [],
+      priority: vars.priority ?? "none",
+      pinned: vars.pinned ?? false,
+      listId: vars.listId ?? createListId,
+      completed: false,
+      createdAt: Date.now(),
+      completedAt: null,
+    });
   };
   const handleSave = (id: string, patch: Partial<Task>) => {
-    flush();
-    edit.mutate({ id, patch });
+    outbox.updateTask(id, patch);
   };
 
   const filtersActive = tagFilters.length > 0 || priorityFilters.length > 0;
@@ -440,6 +406,19 @@ export default function App() {
         onCreate={(name) => createList.mutate(name)}
       />
 
+      {(!online || pendingOps.length > 0) && (
+        <div className="flex items-center gap-2 rounded-md border-[1.8px] border-ink bg-sheet px-3 py-2 font-mono text-[11px] text-ink-2">
+          <span
+            className={`size-2 rounded-full ${online ? "bg-acid-deep" : "bg-prio-med"}`}
+          />
+          {online
+            ? `Syncing ${pendingOps.length} change${pendingOps.length === 1 ? "" : "s"}…`
+            : pendingOps.length > 0
+              ? `Offline — ${pendingOps.length} change${pendingOps.length === 1 ? "" : "s"} will sync`
+              : "Offline"}
+        </div>
+      )}
+
       {searchOpen ? (
         <div className="flex items-center gap-2.5 rounded-lg border-[1.8px] border-ink bg-sheet px-3.5 py-2.5">
           <SearchIcon className="icon size-[17px] text-ink-2" />
@@ -532,12 +511,19 @@ export default function App() {
 
           {done.length > 0 && (
             <>
-              <Section title="Done" count={done.length} />
-              <div className="flex flex-col">
-                {done.map((task) => (
-                  <TaskRow key={task.id} task={task} {...rowProps} />
-                ))}
-              </div>
+              <Section
+                title="Done"
+                count={done.length}
+                collapsed={doneCollapsed}
+                onToggle={toggleDone}
+              />
+              {!doneCollapsed && (
+                <div className="flex flex-col">
+                  {done.map((task) => (
+                    <TaskRow key={task.id} task={task} {...rowProps} />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </>
@@ -546,8 +532,9 @@ export default function App() {
   );
 
   return (
-    <div className="h-full lg:flex">
-      {/* Desktop sidebar */}
+    <TagColorProvider overrides={tagColors}>
+      <div className="h-full lg:flex">
+        {/* Desktop sidebar */}
       <aside className="hidden shrink-0 flex-col gap-2 border-r-[1.8px] border-ink px-5 py-6 lg:flex lg:w-[272px]">
         <h1 className="mb-3 font-display text-[26px] font-extrabold tracking-tight">
           Donezo
@@ -641,7 +628,11 @@ export default function App() {
         onSave={handleSave}
         onCreate={handleAdd}
       />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        allTags={allTags}
+      />
       <FilterModal
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
@@ -681,7 +672,8 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </TagColorProvider>
   );
 }
 
@@ -765,11 +757,35 @@ function FilterChip({
   );
 }
 
-function Section({ title, count }: { title: string; count: number }) {
-  return (
-    <div className="label-mono mt-1 flex items-center gap-2.5 px-0.5 !tracking-[0.16em]">
+function Section({
+  title,
+  count,
+  collapsed,
+  onToggle,
+}: {
+  title: string;
+  count: number;
+  collapsed?: boolean;
+  onToggle?: () => void;
+}) {
+  const body = (
+    <>
+      {onToggle && (
+        <ChevronIcon
+          className={`icon size-3.5 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+        />
+      )}
       {title} <span className="text-ink-2">· {count}</span>
       <span className="h-[1.5px] flex-1 bg-hair-2" />
-    </div>
+    </>
+  );
+  const cls =
+    "label-mono mt-1 flex w-full items-center gap-2.5 px-0.5 !tracking-[0.16em]";
+  return onToggle ? (
+    <button onClick={onToggle} className={`${cls} text-left`}>
+      {body}
+    </button>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }

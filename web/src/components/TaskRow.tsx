@@ -4,7 +4,7 @@ import { useDrag } from "@use-gesture/react";
 import type { Priority, Task } from "../types";
 import { CheckIcon, FlagIcon, NoteIcon, PinIcon, TrashIcon } from "./icons";
 import { PRIORITY_LABEL, PRIORITY_SOFT } from "../lib/priority";
-import { tagDot } from "../lib/tagcolor";
+import { useTagDot } from "./TagColor";
 
 interface Props {
   task: Task;
@@ -46,6 +46,7 @@ export function TaskRow({
   const x = useMotionValue(0);
   const [dragging, setDragging] = useState(false);
   const moved = useRef(false); // distinguishes a swipe from a tap
+  const tagDot = useTagDot();
 
   // The Done / Delete cues fade and grow as you pull toward each action.
   const completeOpacity = useTransform(x, [6, COMMIT * 0.7], [0, 1], { clamp: true });

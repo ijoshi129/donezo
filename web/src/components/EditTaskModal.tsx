@@ -4,7 +4,7 @@ import { Modal } from "./Modal";
 import { FlagIcon, ImageIcon, PinIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { PRIORITY_FILL } from "../lib/priority";
-import { tagDot } from "../lib/tagcolor";
+import { useTagDot } from "./TagColor";
 
 export interface TaskValues {
   title: string;
@@ -51,6 +51,7 @@ export function EditTaskModal({
   const [tagDraft, setTagDraft] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const tagDot = useTagDot();
 
   // Re-seed local state each time the modal opens (empty for create mode).
   useEffect(() => {

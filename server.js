@@ -41,6 +41,8 @@ const DEFAULT_SETTINGS = {
   // Completed tasks are kept in a Completed section by default; the daily
   // noon wipe is opt-in.
   autoClearNoon: false,
+  // Manual tag -> palette-index (0-7) overrides; tags default to an auto color.
+  tagColors: {},
 };
 
 const INBOX_ID = "inbox";
@@ -172,6 +174,25 @@ async function routeApi(request, response, url) {
     return;
   }
 
+  // Set or reset a tag's manual color: { tag, color: 0-7 | null }.
+  if (url.pathname === "/api/tag-color" && request.method === "POST") {
+    const body = await readJson(request);
+    const tag = String(body.tag || "").trim().toLowerCase().slice(0, 24);
+    if (!tag) {
+      sendJson(response, 400, { error: "Tag is required" });
+      return;
+    }
+    const c = Number(body.color);
+    if (body.color === null || !Number.isInteger(c) || c < 0 || c > 7) {
+      delete store.settings.tagColors[tag];
+    } else {
+      store.settings.tagColors[tag] = c;
+    }
+    await saveStore();
+    sendJson(response, 200, { settings: store.settings });
+    return;
+  }
+
   if (url.pathname === "/api/tasks/clear-completed" && request.method === "POST") {
     const cleared = store.tasks.filter((task) => task.completed);
     store.tasks = store.tasks.filter((task) => !task.completed);
@@ -205,8 +226,20 @@ async function routeApi(request, response, url) {
       return;
     }
 
+    // Idempotency: a retried offline create carries a clientId; if we've already
+    // seen it, return the existing task instead of making a duplicate.
+    const clientId = typeof body.clientId === "string" ? body.clientId : null;
+    if (clientId) {
+      const existing = store.tasks.find((t) => t.clientId === clientId);
+      if (existing) {
+        sendJson(response, 201, { task: existing });
+        return;
+      }
+    }
+
     const task = {
       id: crypto.randomUUID(),
+      clientId,
       title: title.slice(0, 140),
       notes: normalizeNotes(body.notes),
       image: await persistImage(body.image, null),
@@ -395,6 +428,9 @@ async function loadStore() {
     delete store.importedUids;
     delete store.push;
     store.settings = { ...DEFAULT_SETTINGS, ...(store.settings || {}) };
+    if (!store.settings.tagColors || typeof store.settings.tagColors !== "object") {
+      store.settings.tagColors = {};
+    }
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
     await saveStore();
