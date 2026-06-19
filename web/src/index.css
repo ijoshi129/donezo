@@ -19,6 +19,7 @@
   --acid-deep: #aad81f;
   --hair: #ddd6c6;
   --hair-2: #cfc8b6;
+  --edge: #251a12; /* hard offset-shadow color for cards */
   --red: #c4361f;
   --on-acid: #17150f;
 
@@ -44,6 +45,7 @@
   --acid-deep: #c9f23a;
   --hair: #2c281e;
   --hair-2: #3a352a;
+  --edge: #000000;
   --red: #e8634c;
   --on-acid: #16140f;
 

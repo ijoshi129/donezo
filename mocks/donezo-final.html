@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Donezo — Cohesive redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;background:#dcd8cf;
+  background-image:radial-gradient(circle at 1px 1px, rgba(0,0,0,.05) 1px, transparent 0);
+  background-size:24px 24px;color:#1a1a1a;padding:46px 22px 80px;-webkit-font-smoothing:antialiased;
+}
+.head{max-width:880px;margin:0 auto 30px}
+.head h1{font-size:27px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+.head p{margin:0;color:#5f5d55;font-size:13.5px;max-width:62ch;line-height:1.5}
+.frames{max-width:880px;margin:0 auto;display:flex;gap:38px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.stage{display:flex;flex-direction:column;align-items:center;gap:12px}
+.lbl{font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8a877e}
+.device{width:354px;padding:10px;border-radius:42px;background:#1a1a1a;box-shadow:0 20px 50px -20px rgba(0,0,0,.5)}
+
+.app{
+  --paper:#f4f1ea; --sheet:#faf7f0; --sheet-2:#ece7da; --ink:#17150f; --ink-2:#6a6353; --ink-3:#a39c89;
+  --acid:#c9f23a; --acid-deep:#aad81f; --hair:#ddd6c6; --hair-2:#cfc8b6; --edge:#251a12;
+  --t-work:#2f6fb0; --t-home:#2f8f5e; --t-mail:#7a52c0; --t-errands:#bd6f25;
+  --card:2px 2px 0 var(--edge);
+  border-radius:32px;overflow:hidden;background:var(--paper);color:var(--ink);height:720px;display:flex;flex-direction:column;position:relative;
+}
+.app.dark{
+  --paper:#16140f; --sheet:#1f1c15; --sheet-2:#13110c; --ink:#efe9d8; --ink-2:#a39a82; --ink-3:#6f6957;
+  --acid-deep:#c9f23a; --hair:#2c281e; --hair-2:#3a352a; --edge:#000;
+  --t-work:#6fa8de; --t-home:#5fc08a; --t-mail:#a98ae6; --t-errands:#e2a155;
+}
+.bar{height:12px}
+.top{display:flex;align-items:center;gap:9px;padding:13px 18px 10px}
+.top h2{flex:1;margin:0;font-size:23px;font-weight:800;letter-spacing:-.04em}
+.ib{width:36px;height:36px;border:1.6px solid var(--ink);border-radius:10px;display:grid;place-items:center;color:var(--ink-2)}
+.ib svg{width:17px;height:17px}
+.scroll{flex:1;overflow:hidden;padding:0 16px;display:flex;flex-direction:column;gap:11px}
+svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* composer — matches card border/radius/shadow */
+.composer{display:flex;align-items:center;gap:6px;background:var(--sheet);border:1.6px solid var(--ink);border-radius:14px;padding:6px 6px 6px 14px;box-shadow:var(--card)}
+.composer input{flex:1;border:0;background:transparent;outline:none;font:inherit;font-size:15px;font-weight:500;color:var(--ink);padding:5px 0}
+.composer .g{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+.composer .g svg{width:18px;height:18px}
+.composer .add{width:36px;height:36px;border-radius:9px;border:1.6px solid var(--ink);background:var(--acid-deep);color:#16140f;display:grid;place-items:center;box-shadow:var(--card)}
+.composer .add svg{width:19px;height:19px;stroke-width:2.4}
+
+/* progress */
+.prog .l{display:flex;justify-content:space-between;font-family:"Geist Mono",monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-bottom:7px;padding:0 2px}
+.prog .l b{color:var(--ink)}
+.track{height:8px;background:var(--sheet-2);border:1.6px solid var(--ink);overflow:hidden}
+.track i{display:block;height:100%;width:62%;background:var(--acid-deep)}
+
+/* quieter section label */
+.sec{font-family:"Geist Mono",monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;align-items:center;gap:8px;margin:5px 2px 0}
+.sec::after{content:"";flex:1;height:1px;background:var(--hair)}
+.sec.btn{cursor:pointer}
+.sec .chev{width:11px;height:11px}
+
+/* cards */
+.cards{display:flex;flex-direction:column;gap:10px}
+.card{display:flex;align-items:flex-start;gap:12px;background:var(--sheet);border:1.6px solid var(--ink);border-radius:14px;padding:13px 14px;box-shadow:var(--card);position:relative}
+.card.pin{padding-left:11px}
+.card.pin::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:99px;background:var(--acid-deep)}
+.ck{flex:0 0 auto;width:21px;height:21px;border:2px solid var(--ink);border-radius:99px;display:grid;place-items:center;color:transparent;margin-top:1px}
+.ck svg{width:12px;height:12px;stroke-width:3}
+.ck.done{background:var(--ink);color:var(--acid-deep)}
+.ti{font-size:16.5px;font-weight:650;letter-spacing:-.02em;margin:0;line-height:1.18}
+.pinic{display:inline-block;vertical-align:-2px;margin-right:5px;color:var(--acid-deep)}
+.pinic svg{width:13px;height:13px}
+.pills{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;line-height:1.4}
+.note{color:var(--ink-3)} .note svg{width:13px;height:13px}
+.pw{background:color-mix(in srgb,var(--t-work) 16%,transparent);color:var(--t-work)}
+.ph{background:color-mix(in srgb,var(--t-home) 16%,transparent);color:var(--t-home)}
+.pm{background:color-mix(in srgb,var(--t-mail) 16%,transparent);color:var(--t-mail)}
+
+/* de-emphasized done */
+.card.done{background:var(--sheet-2);box-shadow:none;border-color:var(--hair-2)}
+.card.done .ck{background:var(--ink);border-color:var(--ink);color:var(--acid-deep)}
+.card.done .ti{color:var(--ink-3);text-decoration:line-through}
+
+/* swipe demo */
+.swipe{position:relative;border-radius:14px}
+.swipe .behind{position:absolute;inset:0;border-radius:14px;background:var(--acid-deep);display:flex;align-items:center;gap:8px;padding-left:18px;
+  font-family:"Geist Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:#16140f}
+.swipe .behind svg{width:17px;height:17px}
+.swipe .card{transform:translateX(64px)}
+
+/* fab — matches card shadow */
+.fab{position:absolute;right:18px;bottom:20px;width:54px;height:54px;border-radius:16px;border:2px solid var(--ink);background:var(--acid-deep);color:#16140f;display:grid;place-items:center;box-shadow:4px 4px 0 var(--edge)}
+.fab svg{width:23px;height:23px;stroke-width:2.5}
+.app.dark .fab,.app.dark .composer .add{color:#16140f}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>Cohesive redesign — all eight changes</h1>
+  <p>Softened ink cards (lighter border + 2px shadow), bigger titles, color tag pills, acid edge on pinned, quieter section labels, de-emphasized + collapsible Done, matched composer/FAB, comfier spacing — light &amp; dark.</p>
+</div>
+
+<div class="frames">
+
+  <!-- LIGHT -->
+  <div class="stage">
+    <div class="lbl">Light</div>
+    <div class="device"><div class="app">
+      <div class="bar"></div>
+      <div class="top"><h2>Donezo</h2>
+        <span class="ib"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+        <span class="ib"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.6 7.6 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.3 1 2-3.4Z"/></svg></span>
+      </div>
+      <div class="scroll">
+        <div class="composer"><input placeholder="Add a task…  #tag" />
+          <span class="g"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+          <span class="g"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 15-5-5L5 19"/></svg></span>
+          <span class="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </div>
+        <div class="prog"><div class="l"><span><b>4</b> left · 5 done</span><span>62%</span></div><div class="track"><i></i></div></div>
+
+        <div class="sec">Open · 4</div>
+        <div class="cards">
+          <div class="card pin"><span class="ck"></span><div><p class="ti"><span class="pinic"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 2.5v4L17 13H7l3-3.5v-4z"/><path d="M12 13v8"/></svg></span>Finish the Q3 report</p><div class="pills"><span class="pill pw">work</span><span class="pill ph">home</span></div></div></div>
+          <div class="card"><span class="ck"></span><div><p class="ti">Water the plants</p><div class="pills"><span class="pill ph">home</span></div></div></div>
+          <!-- mid swipe -->
+          <div class="swipe"><div class="behind"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Done</div>
+            <div class="card"><span class="ck"></span><div><p class="ti">Reply to Maya's email</p><div class="pills"><span class="pill pm">mail</span><span class="note"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/></svg></span></div></div></div>
+          </div>
+          <div class="card"><span class="ck"></span><div><p class="ti">Book the dentist</p></div></div>
+        </div>
+
+        <div class="sec btn">Done · 5
+          <svg class="chev" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><path d="M6 9l6 6 6-6"/></svg></div>
+      </div>
+      <button class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div></div>
+  </div>
+
+  <!-- DARK -->
+  <div class="stage">
+    <div class="lbl">Dark · Done expanded</div>
+    <div class="device"><div class="app dark">
+      <div class="bar"></div>
+      <div class="top"><h2>Donezo</h2>
+        <span class="ib"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+        <span class="ib"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.6 7.6 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.3 1 2-3.4Z"/></svg></span>
+      </div>
+      <div class="scroll">
+        <div class="composer"><input placeholder="Add a task…  #tag" />
+          <span class="g"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+          <span class="g"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 15-5-5L5 19"/></svg></span>
+          <span class="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </div>
+        <div class="prog"><div class="l"><span><b>2</b> left · 5 done</span><span>71%</span></div><div class="track"><i style="width:71%"></i></div></div>
+
+        <div class="sec">Open · 2</div>
+        <div class="cards">
+          <div class="card pin"><span class="ck"></span><div><p class="ti"><span class="pinic"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 2.5v4L17 13H7l3-3.5v-4z"/><path d="M12 13v8"/></svg></span>Sketch the new layout</p><div class="pills"><span class="pill pm">design</span></div></div></div>
+          <div class="card"><span class="ck"></span><div><p class="ti">Grab oat milk</p><div class="pills"><span class="pill" style="background:color-mix(in srgb,var(--t-errands) 16%,transparent);color:var(--t-errands)">errands</span></div></div></div>
+        </div>
+
+        <div class="sec btn">Done · 5
+          <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="cards">
+          <div class="card done"><span class="ck done"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="ti">Pick the accent color</p></div></div>
+          <div class="card done"><span class="ck done"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="ti">Audit the CSS</p></div></div>
+        </div>
+      </div>
+      <button class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div></div>
+  </div>
+</div>
+</body>
+</html>

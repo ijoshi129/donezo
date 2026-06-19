@@ -2,13 +2,13 @@ import { useRef, useState, type ReactNode } from "react";
 import { motion, useMotionValue, useTransform, animate } from "motion/react";
 import { useDrag } from "@use-gesture/react";
 import type { Task } from "../types";
-import { CheckIcon, NoteIcon, PinIcon, TrashIcon } from "./icons";
-import { useTagDot } from "./TagColor";
+import { CheckIcon, NoteIcon, PinIcon } from "./icons";
+import { useTagPill } from "./TagColor";
 
 interface Props {
   task: Task;
   onToggle: (task: Task) => void;
-  onDelete: (task: Task) => void;
+  onTogglePin: (task: Task) => void;
   onEdit: (task: Task) => void;
   onViewImage: (src: string) => void;
   onToggleTag: (tag: string) => void;
@@ -31,7 +31,7 @@ function resist(mx: number) {
 export function TaskRow({
   task,
   onToggle,
-  onDelete,
+  onTogglePin,
   onEdit,
   onViewImage,
   onToggleTag,
@@ -41,13 +41,13 @@ export function TaskRow({
   const x = useMotionValue(0);
   const [dragging, setDragging] = useState(false);
   const moved = useRef(false); // distinguishes a swipe from a tap
-  const tagDot = useTagDot();
+  const tagPill = useTagPill();
 
-  // The Done / Delete cues fade and grow as you pull toward each action.
+  // The Done / Pin cues fade and grow as you pull toward each action.
   const completeOpacity = useTransform(x, [6, COMMIT * 0.7], [0, 1], { clamp: true });
   const completeScale = useTransform(x, [0, COMMIT, COMMIT * 1.5], [0.55, 1, 1.16], { clamp: true });
-  const deleteOpacity = useTransform(x, [-6, -COMMIT * 0.7], [0, 1], { clamp: true });
-  const deleteScale = useTransform(x, [0, -COMMIT, -COMMIT * 1.5], [0.55, 1, 1.16], { clamp: true });
+  const pinOpacity = useTransform(x, [-6, -COMMIT * 0.7], [0, 1], { clamp: true });
+  const pinScale = useTransform(x, [0, -COMMIT, -COMMIT * 1.5], [0.55, 1, 1.16], { clamp: true });
 
   const bind = useDrag(
     ({ down, movement: [mx], velocity: [vx], direction: [dx], last, event }) => {
@@ -74,12 +74,10 @@ export function TaskRow({
           animate(x, 0, SETTLE);
           return;
         }
-        // Delete: fling the card off-screen, then remove it.
+        // Pin / unpin: toggle and settle back — the task stays in place.
         if (mx < -COMMIT || (flick && dx < 0 && mx < -24)) {
-          const off = -(window.innerWidth || 420);
-          animate(x, off, { type: "tween", duration: 0.2, ease: [0.4, 0, 1, 1] }).then(
-            () => onDelete(task),
-          );
+          onTogglePin(task);
+          animate(x, 0, SETTLE);
           return;
         }
         animate(x, 0, SETTLE);
@@ -88,10 +86,12 @@ export function TaskRow({
     { axis: "x", filterTaps: true, pointer: { touch: true } },
   );
 
+  const done = task.completed;
+
   return (
-    <div className="relative border-b-[1.5px] border-hair last:border-b-0">
-      {/* swipe action layers (icons/labels animate with pull distance) */}
-      <div className="absolute inset-0 flex">
+    <div className="relative">
+      {/* swipe action layers — sit behind the card, revealed as it slides */}
+      <div className="absolute inset-0 flex overflow-hidden rounded-[14px]">
         <div className="flex flex-1 items-center justify-start bg-acid px-[18px]">
           <motion.span
             style={{ opacity: completeOpacity, scale: completeScale }}
@@ -103,11 +103,11 @@ export function TaskRow({
         </div>
         <div className="flex flex-1 items-center justify-end bg-ink px-[18px]">
           <motion.span
-            style={{ opacity: deleteOpacity, scale: deleteScale }}
-            className="label-mono flex items-center gap-2 !text-paper"
+            style={{ opacity: pinOpacity, scale: pinScale }}
+            className="label-mono flex items-center gap-2 !text-acid-deep"
           >
-            Delete
-            <TrashIcon className="icon size-[17px]" />
+            {task.pinned ? "Unpin" : "Pin"}
+            <PinIcon className="icon size-[17px]" />
           </motion.span>
         </div>
       </div>
@@ -115,15 +115,24 @@ export function TaskRow({
       <motion.div
         {...(bind() as Record<string, unknown>)}
         style={{ x, touchAction: "pan-y" }}
-        className={`relative flex touch-pan-y items-start gap-3 bg-paper px-1.5 py-[15px] select-none ${
+        className={`relative flex touch-pan-y select-none items-start gap-3 rounded-[14px] border-[1.6px] py-[13px] pr-3.5 ${
+          done
+            ? "border-hair-2 bg-sheet-2"
+            : "border-ink bg-sheet shadow-[2px_2px_0_var(--edge)]"
+        } ${task.pinned && !done ? "pl-[14px]" : "pl-3.5"} ${
           dragging ? "shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)]" : ""
         }`}
       >
+        {/* acid edge marks a pinned task at a glance */}
+        {task.pinned && !done && (
+          <span className="absolute top-2 bottom-2 left-0 w-1 rounded-full bg-acid-deep" />
+        )}
+
         <button
           onClick={() => !dragging && onToggle(task)}
-          aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
+          aria-label={done ? "Mark incomplete" : "Mark complete"}
           className={`mt-px grid size-[22px] shrink-0 place-items-center rounded-full border-2 border-ink transition-colors duration-200 hover:bg-acid ${
-            task.completed ? "bg-ink text-acid" : "text-transparent"
+            done ? "bg-ink text-acid-deep" : "text-transparent"
           }`}
         >
           <CheckIcon className="icon size-3" strokeWidth={3} />
@@ -140,8 +149,8 @@ export function TaskRow({
           }}
         >
           <p
-            className={`m-0 font-display text-base font-semibold tracking-tight transition-colors duration-200 ${
-              task.completed ? "text-ink-3 line-through" : "text-ink"
+            className={`m-0 font-display text-[16.5px] font-[650] leading-[1.18] tracking-tight transition-colors duration-200 ${
+              done ? "text-ink-3 line-through" : "text-ink"
             }`}
           >
             {task.pinned && (
@@ -152,8 +161,8 @@ export function TaskRow({
 
           {(task.tags.length > 0 || !!task.notes) && (
             <div
-              className={`mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[11px] text-ink-2 ${
-                task.completed ? "opacity-50" : ""
+              className={`mt-2 flex flex-wrap items-center gap-1.5 ${
+                done ? "opacity-50" : ""
               }`}
             >
               {task.tags.map((tag) => {
@@ -167,18 +176,17 @@ export function TaskRow({
                       e.stopPropagation();
                       onToggleTag(tag);
                     }}
-                    className={`inline-flex items-center gap-1 ${
-                      on ? "font-semibold text-ink" : "text-ink-2"
-                    }`}
+                    className={`rounded-md px-2 py-0.5 font-display text-[11px] font-semibold leading-[1.4] ${tagPill(
+                      tag,
+                    )} ${on ? "ring-[1.5px] ring-ink ring-inset" : ""}`}
                   >
-                    <span className={`size-[7px] rounded-full ${tagDot(tag)}`} />
                     {tag}
                   </button>
                 );
               })}
 
               {task.notes && (
-                <span className="inline-flex" title="Has notes">
+                <span className="inline-flex text-ink-3" title="Has notes">
                   <NoteIcon className="icon size-3.5" />
                 </span>
               )}

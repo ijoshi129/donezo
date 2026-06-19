@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Task } from "../types";
 import { Modal } from "./Modal";
-import { ImageIcon, PinIcon } from "./icons";
+import { ImageIcon, TrashIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { useTagDot } from "./TagColor";
 
@@ -19,6 +19,7 @@ interface Props {
   onClose: () => void;
   onSave: (id: string, patch: Partial<Task>) => void;
   onCreate: (values: TaskValues) => void;
+  onDelete: (id: string) => void;
 }
 
 export function EditTaskModal({
@@ -27,6 +28,7 @@ export function EditTaskModal({
   onClose,
   onSave,
   onCreate,
+  onDelete,
 }: Props) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -103,20 +105,6 @@ export function EditTaskModal({
             autoFocus
             className="w-full rounded-md border-[1.8px] border-ink bg-transparent px-3 py-2.5 font-display text-lg font-bold tracking-tight text-ink outline-none focus:shadow-hard-sm"
           />
-        </Field>
-
-        <Field label="Pin">
-          <button
-            type="button"
-            onClick={() => setPinned((v) => !v)}
-            aria-pressed={pinned}
-            className={`flex items-center gap-2 rounded-md border-[1.8px] border-ink px-3 py-2.5 font-display text-sm font-semibold ${
-              pinned ? "bg-acid text-on-acid" : "text-ink-2"
-            }`}
-          >
-            <PinIcon className="icon size-[18px]" />
-            {pinned ? "Pinned to top" : "Pin to top"}
-          </button>
         </Field>
 
         <Field label="Notes">
@@ -205,6 +193,19 @@ export function EditTaskModal({
         </Field>
 
         <div className="mt-1 flex gap-3">
+          {task && (
+            <button
+              type="button"
+              onClick={() => {
+                onDelete(task.id);
+                onClose();
+              }}
+              aria-label="Delete task"
+              className="grid w-12 shrink-0 place-items-center rounded-md border-[1.8px] border-ink text-ink hover:bg-red hover:text-paper"
+            >
+              <TrashIcon className="icon size-[18px]" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

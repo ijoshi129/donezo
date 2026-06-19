@@ -64,7 +64,7 @@ export default function App() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [doneCollapsed, setDoneCollapsed] = useState(
-    () => localStorage.getItem("donezo:done-collapsed") === "1",
+    () => localStorage.getItem("donezo:done-collapsed") !== "0",
   );
   const toggleDone = () =>
     setDoneCollapsed((v) => {
@@ -202,6 +202,9 @@ export default function App() {
     const opId = outbox.deleteTask(task.id, UNDO_MS);
     if (opId) showToast("delete", opId);
   };
+  const handleTogglePin = (task: Task) => {
+    outbox.updateTask(task.id, { pinned: !task.pinned });
+  };
   const handleAdd = (vars: NewTask) => {
     outbox.createTask({
       id: `temp-${crypto.randomUUID()}`,
@@ -331,7 +334,7 @@ export default function App() {
   // Props every task row needs (callbacks + active-filter state).
   const rowProps = {
     onToggle: handleToggle,
-    onDelete: handleDelete,
+    onTogglePin: handleTogglePin,
     onEdit: setEditing,
     onViewImage: setLightbox,
     onToggleTag: toggleTagFilter,
@@ -408,7 +411,7 @@ export default function App() {
             </p>
           ) : filtering ? (
             // No reordering while filtering — order would be ambiguous.
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-2.5">
               {open.map((task) => (
                 <TaskRow key={task.id} task={task} {...rowProps} />
               ))}
@@ -424,7 +427,7 @@ export default function App() {
                 items={open.map((t) => t.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-2.5">
                   {open.map((task) => (
                     <SortableTask key={task.id} task={task} {...rowProps} />
                   ))}
@@ -442,7 +445,7 @@ export default function App() {
                 onToggle={toggleDone}
               />
               {!doneCollapsed && (
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-2.5">
                   {done.map((task) => (
                     <TaskRow key={task.id} task={task} {...rowProps} />
                   ))}
@@ -538,6 +541,10 @@ export default function App() {
         }}
         onSave={handleSave}
         onCreate={handleAdd}
+        onDelete={(id) => {
+          const t = tasks.find((x) => x.id === id);
+          if (t) handleDelete(t);
+        }}
       />
       <SettingsModal
         open={settingsOpen}
@@ -681,15 +688,15 @@ function Section({
     <>
       {onToggle && (
         <ChevronIcon
-          className={`icon size-3.5 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+          className={`icon size-3 transition-transform ${collapsed ? "-rotate-90" : ""}`}
         />
       )}
-      {title} <span className="text-ink-2">· {count}</span>
-      <span className="h-[1.5px] flex-1 bg-hair-2" />
+      {title} <span className="text-ink-3">· {count}</span>
+      <span className="h-px flex-1 bg-hair" />
     </>
   );
   const cls =
-    "label-mono mt-1 flex w-full items-center gap-2.5 px-0.5 !tracking-[0.16em]";
+    "label-mono mt-2 flex w-full items-center gap-2 px-0.5 !text-[9.5px] !tracking-[0.14em] !text-ink-3";
   return onToggle ? (
     <button onClick={onToggle} className={`${cls} text-left`}>
       {body}

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Donezo — Tag pills, defined tasks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --paper:#f4f1ea; --sheet:#faf7f0; --sheet-2:#ece7da;
+  --ink:#17150f; --ink-2:#6a6353; --ink-3:#a39c89;
+  --acid:#c9f23a; --acid-deep:#aad81f; --hair:#ddd6c6; --hair-2:#cfc8b6; --edge:#251a12;
+  --t-work:#2f6fb0; --t-home:#2f8f5e; --t-errands:#bd6f25; --t-mail:#7a52c0;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;background:#dcd8cf;
+  background-image:radial-gradient(circle at 1px 1px, rgba(0,0,0,.05) 1px, transparent 0);
+  background-size:24px 24px;color:#1a1a1a;padding:48px 22px 90px;-webkit-font-smoothing:antialiased;
+}
+.head{max-width:1320px;margin:0 auto 34px}
+.head h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+.head p{margin:0;color:#5f5d55;font-size:14px;max-width:64ch;line-height:1.5}
+.row{max-width:1320px;margin:0 auto;display:flex;gap:30px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px;width:300px}
+.cap{text-align:center}
+.cap .t{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.cap .d{font-size:11.5px;color:#7a766c;margin-top:2px;line-height:1.35}
+.phone{width:300px;height:600px;border-radius:38px;padding:9px;background:#1a1a1a;box-shadow:0 18px 40px -18px rgba(0,0,0,.45)}
+.screen{width:100%;height:100%;border-radius:30px;overflow:hidden;background:var(--paper);color:var(--ink);display:flex;flex-direction:column}
+.top{display:flex;align-items:center;padding:16px 16px 6px}
+.top h2{flex:1;margin:0;font-size:20px;font-weight:800;letter-spacing:-.03em}
+.sec{font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;align-items:center;gap:9px;margin:10px 16px 8px}
+.sec::after{content:"";flex:1;height:1.5px;background:var(--hair-2)}
+.list{flex:1;overflow:hidden;padding:0 16px;display:flex;flex-direction:column;gap:9px}
+svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card{display:flex;align-items:flex-start;gap:12px;padding:13px 14px}
+.ck{flex:0 0 auto;width:21px;height:21px;border:2px solid var(--ink);border-radius:99px;display:grid;place-items:center;color:transparent;margin-top:1px}
+.ck svg{width:12px;height:12px;stroke-width:3}
+.ck.done{background:var(--ink);color:var(--acid)}
+.ti{font-size:15.5px;font-weight:600;letter-spacing:-.01em;margin:0;line-height:1.2}
+.pin{display:inline-block;vertical-align:-2px;margin-right:5px;color:var(--acid-deep)}
+.pin svg{width:13px;height:13px}
+.pills{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;line-height:1.4}
+.done-ti{color:var(--ink-3);text-decoration:line-through}
+.pw{background:rgba(47,111,176,.16);color:var(--t-work)}
+.ph{background:rgba(47,143,94,.16);color:var(--t-home)}
+.pm{background:rgba(122,82,192,.16);color:var(--t-mail)}
+.pe{background:rgba(189,111,37,.16);color:var(--t-errands)}
+
+/* A — SOFT CARD */
+.a .card{background:var(--sheet);border:1px solid var(--hair);border-radius:15px;
+  box-shadow:0 1px 2px rgba(80,60,30,.07),0 6px 14px -10px rgba(80,60,30,.18)}
+.a .card.done{background:var(--sheet-2);box-shadow:none}
+
+/* B — INK CARD (hard offset, Graphite+Acid signature) */
+.b .card{background:var(--sheet);border:1.8px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 var(--edge)}
+.b .card.done{background:var(--sheet-2);box-shadow:2px 2px 0 var(--hair-2);border-color:var(--hair-2)}
+
+/* C — FILLED BLOCK (no border, soft fill) */
+.c .card{background:var(--sheet-2);border-radius:13px}
+.c .card.done{background:transparent;border:1px dashed var(--hair-2)}
+
+/* D — OUTLINED (thin border, no shadow) */
+.d .card{background:transparent;border:1.5px solid var(--hair-2);border-radius:13px}
+.d .card.done{border-style:dashed;opacity:.7}
+
+@media(max-width:680px){body{padding:28px 12px}.col,.phone{width:300px}}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>Color pills + each task defined</h1>
+  <p>Same color tag pills (direction 3), but each task is its own contained block instead of hairline rows. Four ways to define the separation.</p>
+</div>
+
+<div class="row">
+
+  <!-- A SOFT CARD -->
+  <div class="col">
+    <div class="cap"><div class="t">A · Soft card</div><div class="d">raised tile · gentle shadow</div></div>
+    <div class="phone"><div class="screen a">
+      <div class="top"><h2>Donezo</h2></div>
+      <div class="sec">Open · 5</div>
+      <div class="list">
+        <div class="card"><span class="ck"></span><div><p class="ti"><span class="pin"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 2.5v4L17 13H7l3-3.5v-4z"/><path d="M12 13v8"/></svg></span>Finish the Q3 report</p><div class="pills"><span class="pill pw">work</span><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Water the plants</p><div class="pills"><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Reply to Maya's email</p><div class="pills"><span class="pill pm">mail</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Book the dentist</p></div></div>
+      </div>
+      <div class="sec">Done · 1</div>
+      <div class="list"><div class="card done"><span class="ck done"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="ti done-ti">Renew the domain</p></div></div></div>
+    </div></div>
+  </div>
+
+  <!-- B INK CARD -->
+  <div class="col">
+    <div class="cap"><div class="t">B · Ink card (signature)</div><div class="d">ink border · hard offset shadow</div></div>
+    <div class="phone"><div class="screen b">
+      <div class="top"><h2>Donezo</h2></div>
+      <div class="sec">Open · 5</div>
+      <div class="list">
+        <div class="card"><span class="ck"></span><div><p class="ti"><span class="pin"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 2.5v4L17 13H7l3-3.5v-4z"/><path d="M12 13v8"/></svg></span>Finish the Q3 report</p><div class="pills"><span class="pill pw">work</span><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Water the plants</p><div class="pills"><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Reply to Maya's email</p><div class="pills"><span class="pill pm">mail</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Book the dentist</p></div></div>
+      </div>
+      <div class="sec">Done · 1</div>
+      <div class="list"><div class="card done"><span class="ck done"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="ti done-ti">Renew the domain</p></div></div></div>
+    </div></div>
+  </div>
+
+  <!-- C FILLED BLOCK -->
+  <div class="col">
+    <div class="cap"><div class="t">C · Filled block</div><div class="d">soft fill · no border</div></div>
+    <div class="phone"><div class="screen c">
+      <div class="top"><h2>Donezo</h2></div>
+      <div class="sec">Open · 5</div>
+      <div class="list">
+        <div class="card"><span class="ck"></span><div><p class="ti"><span class="pin"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 2.5v4L17 13H7l3-3.5v-4z"/><path d="M12 13v8"/></svg></span>Finish the Q3 report</p><div class="pills"><span class="pill pw">work</span><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Water the plants</p><div class="pills"><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Reply to Maya's email</p><div class="pills"><span class="pill pm">mail</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Book the dentist</p></div></div>
+      </div>
+      <div class="sec">Done · 1</div>
+      <div class="list"><div class="card done"><span class="ck done"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="ti done-ti">Renew the domain</p></div></div></div>
+    </div></div>
+  </div>
+
+  <!-- D OUTLINED -->
+  <div class="col">
+    <div class="cap"><div class="t">D · Outlined</div><div class="d">thin border · flat</div></div>
+    <div class="phone"><div class="screen d">
+      <div class="top"><h2>Donezo</h2></div>
+      <div class="sec">Open · 5</div>
+      <div class="list">
+        <div class="card"><span class="ck"></span><div><p class="ti"><span class="pin"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 2.5v4L17 13H7l3-3.5v-4z"/><path d="M12 13v8"/></svg></span>Finish the Q3 report</p><div class="pills"><span class="pill pw">work</span><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Water the plants</p><div class="pills"><span class="pill ph">home</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Reply to Maya's email</p><div class="pills"><span class="pill pm">mail</span></div></div></div>
+        <div class="card"><span class="ck"></span><div><p class="ti">Book the dentist</p></div></div>
+      </div>
+      <div class="sec">Done · 1</div>
+      <div class="list"><div class="card done"><span class="ck done"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="ti done-ti">Renew the domain</p></div></div></div>
+    </div></div>
+  </div>
+
+</div>
+</body>
+</html>

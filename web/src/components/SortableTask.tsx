@@ -6,7 +6,7 @@ import { TaskRow } from "./TaskRow";
 interface Props {
   task: Task;
   onToggle: (task: Task) => void;
-  onDelete: (task: Task) => void;
+  onTogglePin: (task: Task) => void;
   onEdit: (task: Task) => void;
   onViewImage: (src: string) => void;
   onToggleTag: (tag: string) => void;

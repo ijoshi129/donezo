@@ -11,7 +11,7 @@ import type { NewTask } from "../types";
 import { ImageIcon, MicIcon, PlusIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { parseInput } from "../lib/tags";
-import { useTagDot } from "./TagColor";
+import { useTagPill } from "./TagColor";
 
 interface Props {
   onAdd: (task: NewTask) => void;
@@ -42,7 +42,7 @@ export function Composer({ onAdd, inputRef }: Props) {
   const [listening, setListening] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const recognition = useRef<SpeechRecognitionLike | null>(null);
-  const tagDot = useTagDot();
+  const tagPill = useTagPill();
 
   // Live-parse "#tag" tokens from the input.
   const parsed = useMemo(() => parseInput(title), [title]);
@@ -108,7 +108,7 @@ export function Composer({ onAdd, inputRef }: Props) {
     <div className="flex flex-col gap-2">
       <form
         onSubmit={submit}
-        className="flex items-center gap-1.5 rounded-lg border-[1.8px] border-ink bg-sheet py-1.5 pr-1.5 pl-3.5 focus-within:shadow-hard-sm"
+        className="flex items-center gap-1.5 rounded-[14px] border-[1.6px] border-ink bg-sheet py-1.5 pr-1.5 pl-3.5 focus-within:shadow-hard-sm"
       >
         <input
           ref={inputRef}
@@ -154,7 +154,7 @@ export function Composer({ onAdd, inputRef }: Props) {
         <button
           type="submit"
           title="Add task"
-          className="grid size-9 place-items-center rounded-md border-[1.8px] border-ink bg-acid text-on-acid active:translate-y-px"
+          className="grid size-9 place-items-center rounded-[9px] border-[1.6px] border-ink bg-acid text-on-acid shadow-[2px_2px_0_var(--edge)] transition-transform active:translate-x-px active:translate-y-px active:shadow-none"
         >
           <PlusIcon className="icon size-[19px]" strokeWidth={2.4} />
         </button>
@@ -188,9 +188,8 @@ export function Composer({ onAdd, inputRef }: Props) {
           {parsed.tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 font-mono text-[11px] text-ink-2"
+              className={`rounded-md px-2 py-0.5 font-display text-[11px] font-semibold ${tagPill(tag)}`}
             >
-              <span className={`size-[6px] rounded-full ${tagDot(tag)}`} />
               {tag}
             </span>
           ))}
