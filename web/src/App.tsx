@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import {
   DndContext,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
@@ -145,11 +145,12 @@ export default function App() {
     onSettled: settle,
   });
 
+  // Press-and-hold to reorder (anywhere on the card). The delay lets a quick
+  // horizontal drag fall through to swipe (pin/done) and a quick vertical drag
+  // to list scrolling, so reorder only fires on a deliberate hold.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 160, tolerance: 6 },
-    }),
+    useSensor(MouseSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
   );
 
   function onDragEnd(e: DragEndEvent) {

@@ -17,37 +17,26 @@ export function SortableTask(props: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: props.task.id });
 
+  // The whole card is the drag activator (press-and-hold). Listeners live on the
+  // wrapper so they coexist with TaskRow's inner swipe gesture rather than
+  // overriding its pointer handlers.
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 30 : undefined,
       }}
-      className={isDragging ? "relative opacity-95 shadow-hard-sm" : "relative"}
+      className={
+        isDragging
+          ? "relative cursor-grabbing opacity-95 shadow-hard-sm"
+          : "relative cursor-grab"
+      }
     >
-      <TaskRow
-        {...props}
-        dragHandle={
-          <button
-            data-drag-handle
-            aria-label="Drag to reorder"
-            {...attributes}
-            {...listeners}
-            className="mt-0.5 grid size-7 shrink-0 cursor-grab touch-none place-items-center self-center rounded text-ink-3 hover:text-ink active:cursor-grabbing"
-          >
-            <svg viewBox="0 0 24 24" className="size-[18px]" fill="currentColor">
-              <circle cx="9" cy="6" r="1.4" />
-              <circle cx="9" cy="12" r="1.4" />
-              <circle cx="9" cy="18" r="1.4" />
-              <circle cx="15" cy="6" r="1.4" />
-              <circle cx="15" cy="12" r="1.4" />
-              <circle cx="15" cy="18" r="1.4" />
-            </svg>
-          </button>
-        }
-      />
+      <TaskRow {...props} reordering={isDragging} />
     </div>
   );
 }

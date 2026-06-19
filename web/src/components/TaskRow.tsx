@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import { motion, useMotionValue, useTransform, animate } from "motion/react";
 import { useDrag } from "@use-gesture/react";
 import type { Task } from "../types";
@@ -13,7 +13,7 @@ interface Props {
   onViewImage: (src: string) => void;
   onToggleTag: (tag: string) => void;
   activeTags: string[];
-  dragHandle?: ReactNode; // reorder grip (open tasks only)
+  reordering?: boolean; // true while this card is being drag-reordered
 }
 
 const COMMIT = 82; // px past which a swipe fires its action
@@ -36,7 +36,7 @@ export function TaskRow({
   onViewImage,
   onToggleTag,
   activeTags,
-  dragHandle,
+  reordering,
 }: Props) {
   const x = useMotionValue(0);
   const [dragging, setDragging] = useState(false);
@@ -50,15 +50,7 @@ export function TaskRow({
   const pinScale = useTransform(x, [0, -COMMIT, -COMMIT * 1.5], [0.55, 1, 1.16], { clamp: true });
 
   const bind = useDrag(
-    ({ down, movement: [mx], velocity: [vx], direction: [dx], last, event }) => {
-      // Ignore swipes that begin on the reorder handle — that's dnd-kit's job.
-      if (
-        down &&
-        !moved.current &&
-        (event?.target as HTMLElement | null)?.closest("[data-drag-handle]")
-      ) {
-        return;
-      }
+    ({ down, movement: [mx], velocity: [vx], direction: [dx], last }) => {
       setDragging(down);
       if (down) {
         if (Math.abs(mx) > 6) moved.current = true;
@@ -113,7 +105,7 @@ export function TaskRow({
       </div>
 
       <motion.div
-        {...(bind() as Record<string, unknown>)}
+        {...(reordering ? {} : (bind() as Record<string, unknown>))}
         style={{ x, touchAction: "pan-y" }}
         className={`relative flex touch-pan-y select-none items-start gap-3 rounded-[14px] border-[1.6px] py-[13px] pr-3.5 ${
           done
@@ -214,8 +206,6 @@ export function TaskRow({
             />
           </button>
         )}
-
-        {dragHandle}
       </motion.div>
     </div>
   );
