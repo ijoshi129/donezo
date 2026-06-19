@@ -2,6 +2,7 @@ import type { Priority } from "../types";
 import { Modal } from "./Modal";
 import { FlagIcon } from "./icons";
 import { PRIORITY_FILL, PRIORITY_LABEL } from "../lib/priority";
+import { tagDot } from "../lib/tagcolor";
 
 const PRIORITY_OPTIONS: Exclude<Priority, "none">[] = ["high", "medium", "low"];
 
@@ -66,13 +67,13 @@ export function FilterModal({
                     key={tag}
                     type="button"
                     onClick={() => onToggleTag(tag)}
-                    className={`inline-flex items-center gap-1.5 rounded-md border-[1.5px] border-ink px-2.5 py-1.5 font-mono text-xs ${
-                      on ? "bg-acid font-semibold text-on-acid" : "text-ink"
+                    className={`inline-flex items-center gap-1.5 rounded-md border-[1.5px] px-2.5 py-1.5 font-mono text-xs ${
+                      on
+                        ? "border-ink bg-sheet-2 font-semibold text-ink"
+                        : "border-hair text-ink-2"
                     }`}
                   >
-                    <span
-                      className={`size-[7px] rounded-full ${on ? "bg-on-acid" : "bg-ink-2"}`}
-                    />
+                    <span className={`size-[7px] rounded-full ${tagDot(tag)}`} />
                     {tag}
                   </button>
                 );

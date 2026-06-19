@@ -4,6 +4,7 @@ import { Modal } from "./Modal";
 import { FlagIcon, ImageIcon, PinIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { PRIORITY_FILL } from "../lib/priority";
+import { tagDot } from "../lib/tagcolor";
 
 export interface TaskValues {
   title: string;
@@ -190,9 +191,9 @@ export function EditTaskModal({
                 type="button"
                 onClick={() => setTags(tags.filter((t) => t !== tag))}
                 title="Remove tag"
-                className="inline-flex items-center gap-1.5 rounded-[5px] border-[1.5px] border-ink px-2 py-0.5 font-mono text-xs hover:bg-ink hover:text-paper"
+                className="inline-flex items-center gap-1.5 rounded-[5px] border-[1.5px] border-ink px-2 py-0.5 font-mono text-xs text-ink hover:line-through"
               >
-                <span className="size-[7px] rounded-full bg-ink-2" />
+                <span className={`size-[7px] rounded-full ${tagDot(tag)}`} />
                 {tag}
               </button>
             ))}

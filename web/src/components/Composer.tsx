@@ -12,6 +12,7 @@ import { FlagIcon, ImageIcon, MicIcon, PlusIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { parseInput } from "../lib/tags";
 import { PRIORITY_FILL, PRIORITY_SOFT, PRIORITY_TEXT } from "../lib/priority";
+import { tagDot } from "../lib/tagcolor";
 
 interface Props {
   onAdd: (task: NewTask) => void;
@@ -254,9 +255,9 @@ export function Composer({ onAdd, inputRef }: Props) {
           {parsed.tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 rounded-[5px] border-[1.5px] border-ink px-1.5 py-0.5 font-mono text-[11px] text-ink"
+              className="inline-flex items-center gap-1 font-mono text-[11px] text-ink-2"
             >
-              <span className="size-[6px] rounded-full bg-acid-deep" />
+              <span className={`size-[6px] rounded-full ${tagDot(tag)}`} />
               {tag}
             </span>
           ))}

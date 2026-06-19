@@ -41,6 +41,7 @@ import {
   SettingsIcon,
 } from "./components/icons";
 import { PRIORITY_FILL } from "./lib/priority";
+import { tagDot } from "./lib/tagcolor";
 
 const TASKS_KEY = ["tasks"] as const;
 const LISTS_KEY = ["lists"] as const;
@@ -384,6 +385,16 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [anyModalOpen]);
 
+  // Live sync: refetch when another device (or this one) changes data.
+  useEffect(() => {
+    const es = new EventSource("/api/events");
+    es.onmessage = () => {
+      qc.invalidateQueries({ queryKey: TASKS_KEY });
+      qc.invalidateQueries({ queryKey: LISTS_KEY });
+    };
+    return () => es.close();
+  }, [qc]);
+
   const { open, done } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const match = (t: Task) =>
@@ -463,10 +474,10 @@ export default function App() {
             <FilterChip
               key={`t-${tag}`}
               label={tag}
-              className="border-ink bg-acid text-on-acid"
+              className="border-ink text-ink"
               onRemove={() => toggleTagFilter(tag)}
             >
-              <span className="size-[6px] rounded-full bg-on-acid" />
+              <span className={`size-[6px] rounded-full ${tagDot(tag)}`} />
             </FilterChip>
           ))}
           <button
@@ -738,7 +749,7 @@ function FilterChip({
   label: string;
   onRemove: () => void;
   className: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <button

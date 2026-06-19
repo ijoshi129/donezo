@@ -53,6 +53,7 @@ let store = {
   tasks: [],
 };
 let writeQueue = Promise.resolve();
+const sseClients = new Set(); // live-sync (Server-Sent Events) connections
 
 function loadLocalEnv() {
   let raw;
@@ -101,6 +102,28 @@ async function start() {
   });
 
   scheduleNextNoonCleanup();
+
+  // Keep SSE connections alive through proxies.
+  setInterval(() => {
+    for (const res of sseClients) {
+      try {
+        res.write(": ping\n\n");
+      } catch {
+        sseClients.delete(res);
+      }
+    }
+  }, 25000).unref();
+}
+
+// Tell every connected client that data changed (so they refetch).
+function broadcast() {
+  for (const res of sseClients) {
+    try {
+      res.write("data: changed\n\n");
+    } catch {
+      sseClients.delete(res);
+    }
+  }
 }
 
 async function route(request, response) {
@@ -116,6 +139,19 @@ async function route(request, response) {
 }
 
 async function routeApi(request, response, url) {
+  if (url.pathname === "/api/events" && request.method === "GET") {
+    response.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    response.write(": connected\n\n");
+    sseClients.add(response);
+    request.on("close", () => sseClients.delete(response));
+    return;
+  }
+
   if (url.pathname === "/api/tasks" && request.method === "GET") {
     sendJson(response, 200, { tasks: sortTasks(store.tasks) });
     return;
@@ -366,6 +402,7 @@ async function loadStore() {
 }
 
 function saveStore() {
+  broadcast(); // notify other devices that data changed
   writeQueue = writeQueue.then(async () => {
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(DATA_FILE, `${JSON.stringify(store, null, 2)}\n`);

@@ -29,6 +29,16 @@
   --prio-med-soft: rgba(181, 128, 12, 0.15);
   --prio-low: #3a6ea5;
   --prio-low-soft: rgba(58, 110, 165, 0.13);
+
+  /* tag palette — assigned to tags deterministically by name */
+  --tag-0: #2f6fb0;
+  --tag-1: #2f8f5e;
+  --tag-2: #7a52c0;
+  --tag-3: #b24f86;
+  --tag-4: #1f8a8a;
+  --tag-5: #bd6f25;
+  --tag-6: #c0463b;
+  --tag-7: #9c7a14;
 }
 
 .dark {
@@ -51,6 +61,15 @@
   --prio-med-soft: rgba(224, 171, 68, 0.16);
   --prio-low: #79a8da;
   --prio-low-soft: rgba(121, 168, 218, 0.16);
+
+  --tag-0: #6fa8de;
+  --tag-1: #5fc08a;
+  --tag-2: #a98ae6;
+  --tag-3: #dd87b6;
+  --tag-4: #4cc0c0;
+  --tag-5: #e2a155;
+  --tag-6: #ec7468;
+  --tag-7: #d4b14a;
 }
 
 /* Expose tokens to Tailwind utilities: bg-paper, text-ink, border-hair,
@@ -74,6 +93,23 @@
   --color-prio-med-soft: var(--prio-med-soft);
   --color-prio-low: var(--prio-low);
   --color-prio-low-soft: var(--prio-low-soft);
+
+  --color-tag-0: var(--tag-0);
+  --color-tag-0-soft: color-mix(in srgb, var(--tag-0) 16%, transparent);
+  --color-tag-1: var(--tag-1);
+  --color-tag-1-soft: color-mix(in srgb, var(--tag-1) 16%, transparent);
+  --color-tag-2: var(--tag-2);
+  --color-tag-2-soft: color-mix(in srgb, var(--tag-2) 16%, transparent);
+  --color-tag-3: var(--tag-3);
+  --color-tag-3-soft: color-mix(in srgb, var(--tag-3) 16%, transparent);
+  --color-tag-4: var(--tag-4);
+  --color-tag-4-soft: color-mix(in srgb, var(--tag-4) 16%, transparent);
+  --color-tag-5: var(--tag-5);
+  --color-tag-5-soft: color-mix(in srgb, var(--tag-5) 16%, transparent);
+  --color-tag-6: var(--tag-6);
+  --color-tag-6-soft: color-mix(in srgb, var(--tag-6) 16%, transparent);
+  --color-tag-7: var(--tag-7);
+  --color-tag-7-soft: color-mix(in srgb, var(--tag-7) 16%, transparent);
 
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;

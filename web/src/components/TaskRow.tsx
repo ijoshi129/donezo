@@ -4,6 +4,7 @@ import { useDrag } from "@use-gesture/react";
 import type { Priority, Task } from "../types";
 import { CheckIcon, FlagIcon, NoteIcon, PinIcon, TrashIcon } from "./icons";
 import { PRIORITY_LABEL, PRIORITY_SOFT } from "../lib/priority";
+import { tagDot } from "../lib/tagcolor";
 
 interface Props {
   task: Task;
@@ -192,12 +193,10 @@ export function TaskRow({
                       onToggleTag(tag);
                     }}
                     className={`inline-flex items-center gap-1 ${
-                      on ? "font-semibold text-ink" : ""
+                      on ? "font-semibold text-ink" : "text-ink-2"
                     }`}
                   >
-                    <span
-                      className={`size-[7px] rounded-full ${on ? "bg-acid-deep" : "bg-ink-2"}`}
-                    />
+                    <span className={`size-[7px] rounded-full ${tagDot(tag)}`} />
                     {tag}
                   </button>
                 );
