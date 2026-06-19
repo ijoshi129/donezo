@@ -22,14 +22,6 @@
   --red: #c4361f;
   --on-acid: #17150f;
 
-  /* priority — color-coded (vivid text/icon + soft tint background) */
-  --prio-high: #cf3a22;
-  --prio-high-soft: rgba(207, 58, 34, 0.12);
-  --prio-med: #b5800c;
-  --prio-med-soft: rgba(181, 128, 12, 0.15);
-  --prio-low: #3a6ea5;
-  --prio-low-soft: rgba(58, 110, 165, 0.13);
-
   /* tag palette — assigned to tags deterministically by name */
   --tag-0: #2f6fb0;
   --tag-1: #2f8f5e;
@@ -54,13 +46,6 @@
   --hair-2: #3a352a;
   --red: #e8634c;
   --on-acid: #16140f;
-
-  --prio-high: #f0664e;
-  --prio-high-soft: rgba(240, 102, 78, 0.16);
-  --prio-med: #e0ab44;
-  --prio-med-soft: rgba(224, 171, 68, 0.16);
-  --prio-low: #79a8da;
-  --prio-low-soft: rgba(121, 168, 218, 0.16);
 
   --tag-0: #6fa8de;
   --tag-1: #5fc08a;
@@ -87,13 +72,6 @@
   --color-hair-2: var(--hair-2);
   --color-red: var(--red);
   --color-on-acid: var(--on-acid);
-  --color-prio-high: var(--prio-high);
-  --color-prio-high-soft: var(--prio-high-soft);
-  --color-prio-med: var(--prio-med);
-  --color-prio-med-soft: var(--prio-med-soft);
-  --color-prio-low: var(--prio-low);
-  --color-prio-low-soft: var(--prio-low-soft);
-
   --color-tag-0: var(--tag-0);
   --color-tag-0-soft: color-mix(in srgb, var(--tag-0) 16%, transparent);
   --color-tag-1: var(--tag-1);

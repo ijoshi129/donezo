@@ -45,13 +45,9 @@ const DEFAULT_SETTINGS = {
   tagColors: {},
 };
 
-const INBOX_ID = "inbox";
-const DEFAULT_LISTS = [{ id: INBOX_ID, name: "Inbox", createdAt: 0 }];
-
 let store = {
   lastNoonCleanup: null,
   settings: { ...DEFAULT_SETTINGS },
-  lists: [...DEFAULT_LISTS],
   tasks: [],
 };
 let writeQueue = Promise.resolve();
@@ -244,9 +240,7 @@ async function routeApi(request, response, url) {
       notes: normalizeNotes(body.notes),
       image: await persistImage(body.image, null),
       tags: normalizeTags(body.tags),
-      priority: normalizePriority(body.priority),
       pinned: body.pinned === true,
-      listId: normalizeListId(body.listId),
       completed: false,
       createdAt: Date.now(),
       completedAt: null,
@@ -280,17 +274,11 @@ async function routeApi(request, response, url) {
     if (Object.hasOwn(body, "tags")) {
       task.tags = normalizeTags(body.tags);
     }
-    if (Object.hasOwn(body, "priority")) {
-      task.priority = normalizePriority(body.priority);
-    }
     if (Object.hasOwn(body, "notes")) {
       task.notes = normalizeNotes(body.notes);
     }
     if (typeof body.pinned === "boolean") {
       task.pinned = body.pinned;
-    }
-    if (Object.hasOwn(body, "listId")) {
-      task.listId = normalizeListId(body.listId);
     }
 
     await saveStore();
@@ -315,60 +303,6 @@ async function routeApi(request, response, url) {
   const imageMatch = url.pathname.match(/^\/api\/images\/([^/]+)$/);
   if (imageMatch && request.method === "GET") {
     await serveImage(response, imageMatch[1]);
-    return;
-  }
-
-  if (url.pathname === "/api/lists" && request.method === "GET") {
-    sendJson(response, 200, { lists: store.lists });
-    return;
-  }
-
-  if (url.pathname === "/api/lists" && request.method === "POST") {
-    const body = await readJson(request);
-    const name = String(body.name || "").trim().slice(0, 40);
-    if (!name) {
-      sendJson(response, 400, { error: "List name is required" });
-      return;
-    }
-    const list = { id: crypto.randomUUID(), name, createdAt: Date.now() };
-    store.lists.push(list);
-    await saveStore();
-    sendJson(response, 201, { list });
-    return;
-  }
-
-  const listMatch = url.pathname.match(/^\/api\/lists\/([^/]+)$/);
-  if (listMatch && request.method === "PATCH") {
-    const id = decodeURIComponent(listMatch[1]);
-    const list = store.lists.find((l) => l.id === id);
-    if (!list) {
-      sendJson(response, 404, { error: "List not found" });
-      return;
-    }
-    const body = await readJson(request);
-    const name = String(body.name || "").trim().slice(0, 40);
-    if (name) list.name = name;
-    await saveStore();
-    sendJson(response, 200, { list });
-    return;
-  }
-
-  if (listMatch && request.method === "DELETE") {
-    const id = decodeURIComponent(listMatch[1]);
-    if (id === INBOX_ID) {
-      sendJson(response, 400, { error: "The Inbox can't be deleted" });
-      return;
-    }
-    if (!store.lists.some((l) => l.id === id)) {
-      sendJson(response, 404, { error: "List not found" });
-      return;
-    }
-    store.lists = store.lists.filter((l) => l.id !== id);
-    for (const task of store.tasks) {
-      if (task.listId === id) task.listId = INBOX_ID; // orphans fall back to Inbox
-    }
-    await saveStore();
-    sendJson(response, 200, { ok: true });
     return;
   }
 
@@ -413,20 +347,20 @@ async function loadStore() {
   try {
     store = JSON.parse(await fs.readFile(DATA_FILE, "utf8"));
     if (!Array.isArray(store.tasks)) store.tasks = [];
-    ensureLists();
     // Backfill fields added after a task was first stored, and drop removed ones.
     for (const task of store.tasks) {
-      task.priority = normalizePriority(task.priority);
       if (typeof task.notes !== "string") task.notes = "";
-      delete task.subtasks;
       task.pinned = task.pinned === true;
-      task.listId = normalizeListId(task.listId);
+      delete task.subtasks;
       delete task.dueDate;
       delete task.recurrence;
+      delete task.priority;
+      delete task.listId;
     }
-    // Drop fields left by the removed Apple Reminders sync / push features.
+    // Drop fields left by removed features.
     delete store.importedUids;
     delete store.push;
+    delete store.lists;
     store.settings = { ...DEFAULT_SETTINGS, ...(store.settings || {}) };
     if (!store.settings.tagColors || typeof store.settings.tagColors !== "object") {
       store.settings.tagColors = {};
@@ -502,28 +436,8 @@ function normalizeTags(value) {
   return tags;
 }
 
-const PRIORITIES = new Set(["none", "low", "medium", "high"]);
-
-function normalizePriority(value) {
-  return PRIORITIES.has(value) ? value : "none";
-}
-
 function normalizeNotes(value) {
   return typeof value === "string" ? value.slice(0, 4000) : "";
-}
-
-function normalizeListId(value) {
-  return typeof value === "string" && store.lists.some((l) => l.id === value)
-    ? value
-    : INBOX_ID;
-}
-
-// Make sure store.lists is a valid array that always contains the Inbox.
-function ensureLists() {
-  if (!Array.isArray(store.lists)) store.lists = [];
-  if (!store.lists.some((l) => l && l.id === INBOX_ID)) {
-    store.lists.unshift({ ...DEFAULT_LISTS[0] });
-  }
 }
 
 function decodeImageDataUrl(value) {

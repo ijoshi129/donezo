@@ -81,9 +81,7 @@ async function runOp(op: Op): Promise<"ok" | "retry" | "drop"> {
         notes: op.task.notes,
         image: op.task.image,
         tags: op.task.tags,
-        priority: op.task.priority,
         pinned: op.task.pinned,
-        listId: op.task.listId,
       });
       idMap.set(op.task.id, real.id);
       reconcileCreate?.(op.task.id, real);

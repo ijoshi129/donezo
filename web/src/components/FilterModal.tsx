@@ -1,19 +1,12 @@
-import type { Priority } from "../types";
 import { Modal } from "./Modal";
-import { FlagIcon } from "./icons";
-import { PRIORITY_FILL, PRIORITY_LABEL } from "../lib/priority";
 import { useTagDot } from "./TagColor";
-
-const PRIORITY_OPTIONS: Exclude<Priority, "none">[] = ["high", "medium", "low"];
 
 interface Props {
   open: boolean;
   onClose: () => void;
   allTags: string[];
   tagFilters: string[];
-  priorityFilters: Priority[];
   onToggleTag: (tag: string) => void;
-  onTogglePriority: (p: Priority) => void;
   onClear: () => void;
 }
 
@@ -22,39 +15,15 @@ export function FilterModal({
   onClose,
   allTags,
   tagFilters,
-  priorityFilters,
   onToggleTag,
-  onTogglePriority,
   onClear,
 }: Props) {
-  const any = tagFilters.length > 0 || priorityFilters.length > 0;
+  const any = tagFilters.length > 0;
   const tagDot = useTagDot();
 
   return (
     <Modal open={open} onOpenChange={(o) => !o && onClose()} title="Filter">
       <div className="flex flex-col gap-5">
-        <section>
-          <span className="label-mono mb-2.5 block">Priority</span>
-          <div className="flex flex-wrap gap-2">
-            {PRIORITY_OPTIONS.map((p) => {
-              const on = priorityFilters.includes(p);
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => onTogglePriority(p)}
-                  className={`inline-flex items-center gap-1.5 rounded-md border-[1.5px] px-2.5 py-1.5 font-mono text-xs font-semibold ${
-                    on ? `border-transparent ${PRIORITY_FILL[p]}` : "border-ink text-ink-2"
-                  }`}
-                >
-                  <FlagIcon className="icon size-3.5" />
-                  {PRIORITY_LABEL[p]}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
         <section>
           <span className="label-mono mb-2.5 block">Tags</span>
           {allTags.length === 0 ? (

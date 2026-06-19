@@ -26,7 +26,7 @@ import {
   restrictToVerticalAxis,
 } from "@dnd-kit/modifiers";
 import { api } from "./api";
-import type { NewTask, Priority, Task } from "./types";
+import type { NewTask, Task } from "./types";
 import { Composer } from "./components/Composer";
 import { Progress } from "./components/Progress";
 import { TaskRow } from "./components/TaskRow";
@@ -34,27 +34,22 @@ import { SortableTask } from "./components/SortableTask";
 import { EditTaskModal } from "./components/EditTaskModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { FilterModal } from "./components/FilterModal";
-import { ListsNav, ListChips } from "./components/Lists";
 import { CommandPalette, type Command } from "./components/CommandPalette";
 import { Lightbox } from "./components/Lightbox";
 import { setThemePref } from "./lib/theme";
 import {
+  ChevronIcon,
   CommandIcon,
   FilterIcon,
-  FlagIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
 } from "./components/icons";
-import { PRIORITY_FILL } from "./lib/priority";
 import { autoIndex, dotClass } from "./lib/tagcolor";
 import { TagColorProvider } from "./components/TagColor";
-import { ChevronIcon } from "./components/icons";
 import { outbox, applyOps } from "./lib/outbox";
 
 const TASKS_KEY = ["tasks"] as const;
-const LISTS_KEY = ["lists"] as const;
-const INBOX_ID = "inbox";
 
 export default function App() {
   const qc = useQueryClient();
@@ -66,10 +61,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
-  const [priorityFilters, setPriorityFilters] = useState<Priority[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [selectedList, setSelectedList] = useState<string>("all");
   const [doneCollapsed, setDoneCollapsed] = useState(
     () => localStorage.getItem("donezo:done-collapsed") === "1",
   );
@@ -115,10 +108,6 @@ export default function App() {
     });
   }, [qc]);
 
-  const { data: lists = [] } = useQuery({
-    queryKey: LISTS_KEY,
-    queryFn: api.listLists,
-  });
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: api.getSettings,
@@ -126,32 +115,6 @@ export default function App() {
   const tagColors = settings?.tagColors ?? {};
   const tagDot = (tag: string) =>
     dotClass(typeof tagColors[tag] === "number" ? tagColors[tag] : autoIndex(tag));
-
-  // New tasks land in the selected list (or Inbox when viewing "all").
-  const createListId = selectedList === "all" ? INBOX_ID : selectedList;
-  const invalidateLists = () =>
-    qc.invalidateQueries({ queryKey: LISTS_KEY });
-
-  const createList = useMutation({
-    mutationFn: (name: string) => api.createList(name),
-    onSuccess: (list) => {
-      invalidateLists();
-      setSelectedList(list.id);
-    },
-  });
-  const renameList = useMutation({
-    mutationFn: (vars: { id: string; name: string }) =>
-      api.renameList(vars.id, vars.name),
-    onSuccess: invalidateLists,
-  });
-  const removeList = useMutation({
-    mutationFn: (id: string) => api.deleteList(id),
-    onSuccess: (_r, id) => {
-      invalidateLists();
-      qc.invalidateQueries({ queryKey: TASKS_KEY }); // orphans moved to Inbox
-      if (selectedList === id) setSelectedList("all");
-    },
-  });
 
   // Shared optimistic plumbing: snapshot the list, apply `change` immediately,
   // roll back on error, and reconcile with the server when settled.
@@ -246,9 +209,7 @@ export default function App() {
       notes: vars.notes ?? "",
       image: vars.image ?? null,
       tags: vars.tags ?? [],
-      priority: vars.priority ?? "none",
       pinned: vars.pinned ?? false,
-      listId: vars.listId ?? createListId,
       completed: false,
       createdAt: Date.now(),
       completedAt: null,
@@ -258,7 +219,7 @@ export default function App() {
     outbox.updateTask(id, patch);
   };
 
-  const filtersActive = tagFilters.length > 0 || priorityFilters.length > 0;
+  const filtersActive = tagFilters.length > 0;
   const filtering = query.trim() !== "" || filtersActive;
 
   const allTags = useMemo(
@@ -270,13 +231,8 @@ export default function App() {
     setTagFilters((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
-  const togglePriorityFilter = (p: Priority) =>
-    setPriorityFilters((prev) =>
-      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
-    );
   const clearFilters = () => {
     setTagFilters([]);
-    setPriorityFilters([]);
     setQuery("");
   };
 
@@ -300,17 +256,9 @@ export default function App() {
       { id: "t-light", label: "Theme: Light", keywords: "appearance", run: () => setThemePref("light") },
       { id: "t-dark", label: "Theme: Dark", keywords: "appearance", run: () => setThemePref("dark") },
       { id: "t-auto", label: "Theme: Auto", keywords: "appearance", run: () => setThemePref("auto") },
-      { id: "list-all", label: "Go to: All Tasks", keywords: "list", run: () => setSelectedList("all") },
     );
-    for (const l of lists)
-      cmds.push({
-        id: `list-${l.id}`,
-        label: `Go to: ${l.name}`,
-        keywords: "list",
-        run: () => setSelectedList(l.id),
-      });
     return cmds;
-  }, [lists, filtersActive]);
+  }, [filtersActive]);
 
   const anyModalOpen =
     paletteOpen ||
@@ -354,23 +302,18 @@ export default function App() {
   // Live sync: refetch when another device (or this one) changes data.
   useEffect(() => {
     const es = new EventSource("/api/events");
-    es.onmessage = () => {
-      qc.invalidateQueries({ queryKey: TASKS_KEY });
-      qc.invalidateQueries({ queryKey: LISTS_KEY });
-    };
+    es.onmessage = () => qc.invalidateQueries({ queryKey: TASKS_KEY });
     return () => es.close();
   }, [qc]);
 
   const { open, done } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const match = (t: Task) =>
-      (selectedList === "all" || t.listId === selectedList) &&
       (!q ||
         t.title.toLowerCase().includes(q) ||
         t.tags.some((tag) => tag.toLowerCase().includes(q))) &&
       (tagFilters.length === 0 ||
-        t.tags.some((tag) => tagFilters.includes(tag))) &&
-      (priorityFilters.length === 0 || priorityFilters.includes(t.priority));
+        t.tags.some((tag) => tagFilters.includes(tag)));
     const open: Task[] = [];
     const done: Task[] = [];
     for (const t of tasks) {
@@ -378,7 +321,7 @@ export default function App() {
       (t.completed ? done : open).push(t);
     }
     return { open, done };
-  }, [tasks, query, tagFilters, priorityFilters, selectedList]);
+  }, [tasks, query, tagFilters]);
 
   const toggleSearch = () => {
     setSearchOpen((v) => !v);
@@ -392,24 +335,15 @@ export default function App() {
     onEdit: setEditing,
     onViewImage: setLightbox,
     onToggleTag: toggleTagFilter,
-    onTogglePriority: togglePriorityFilter,
     activeTags: tagFilters,
-    activePriorities: priorityFilters,
   };
 
   const content = (
     <>
-      <ListChips
-        lists={lists}
-        selected={selectedList}
-        onSelect={setSelectedList}
-        onCreate={(name) => createList.mutate(name)}
-      />
-
       {(!online || pendingOps.length > 0) && (
         <div className="flex items-center gap-2 rounded-md border-[1.8px] border-ink bg-sheet px-3 py-2 font-mono text-[11px] text-ink-2">
           <span
-            className={`size-2 rounded-full ${online ? "bg-acid-deep" : "bg-prio-med"}`}
+            className={`size-2 rounded-full ${online ? "bg-acid-deep" : "bg-ink-3"}`}
           />
           {online
             ? `Syncing ${pendingOps.length} change${pendingOps.length === 1 ? "" : "s"}…`
@@ -436,19 +370,9 @@ export default function App() {
 
       <Progress remaining={open.length} done={done.length} />
 
-      {(tagFilters.length > 0 || priorityFilters.length > 0) && (
+      {tagFilters.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 px-0.5">
           <span className="label-mono !text-[10px]">Filter</span>
-          {priorityFilters.map((p) => (
-            <FilterChip
-              key={`p-${p}`}
-              label={p}
-              className={`border-transparent ${PRIORITY_FILL[p]}`}
-              onRemove={() => togglePriorityFilter(p)}
-            >
-              <FlagIcon className="icon size-3" />
-            </FilterChip>
-          ))}
           {tagFilters.map((tag) => (
             <FilterChip
               key={`t-${tag}`}
@@ -563,17 +487,6 @@ export default function App() {
           <FilterIcon className="icon size-[18px]" />
         </SidebarItem>
 
-        <div className="mt-3 overflow-y-auto">
-          <ListsNav
-            lists={lists}
-            selected={selectedList}
-            onSelect={setSelectedList}
-            onCreate={(name) => createList.mutate(name)}
-            onRename={(id, name) => renameList.mutate({ id, name })}
-            onDelete={(id) => removeList.mutate(id)}
-          />
-        </div>
-
         <div className="mt-auto" />
         <SidebarItem onClick={() => setSettingsOpen(true)} label="Settings">
           <SettingsIcon className="icon size-[18px]" />
@@ -619,8 +532,6 @@ export default function App() {
       <EditTaskModal
         open={creating || editing !== null}
         task={editing}
-        lists={lists}
-        defaultListId={createListId}
         onClose={() => {
           setEditing(null);
           setCreating(false);
@@ -638,9 +549,7 @@ export default function App() {
         onClose={() => setFilterOpen(false)}
         allTags={allTags}
         tagFilters={tagFilters}
-        priorityFilters={priorityFilters}
         onToggleTag={toggleTagFilter}
-        onTogglePriority={togglePriorityFilter}
         onClear={clearFilters}
       />
       <Lightbox src={lightbox} onClose={() => setLightbox(null)} />

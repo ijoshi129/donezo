@@ -1,43 +1,29 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import type { List, Priority, Task } from "../types";
+import type { Task } from "../types";
 import { Modal } from "./Modal";
-import { FlagIcon, ImageIcon, PinIcon } from "./icons";
+import { ImageIcon, PinIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
-import { PRIORITY_FILL } from "../lib/priority";
 import { useTagDot } from "./TagColor";
 
 export interface TaskValues {
   title: string;
   notes: string;
   tags: string[];
-  priority: Priority;
   pinned: boolean;
-  listId: string;
   image: string | null;
 }
 
 interface Props {
   open: boolean;
   task: Task | null; // null => create mode
-  lists: List[];
-  defaultListId: string;
   onClose: () => void;
   onSave: (id: string, patch: Partial<Task>) => void;
   onCreate: (values: TaskValues) => void;
 }
 
-const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Med" },
-  { value: "high", label: "High" },
-];
-
 export function EditTaskModal({
   open,
   task,
-  lists,
-  defaultListId,
   onClose,
   onSave,
   onCreate,
@@ -45,9 +31,7 @@ export function EditTaskModal({
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [priority, setPriority] = useState<Priority>("none");
   const [pinned, setPinned] = useState(false);
-  const [listId, setListId] = useState(defaultListId);
   const [tagDraft, setTagDraft] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -59,12 +43,10 @@ export function EditTaskModal({
     setTitle(task?.title ?? "");
     setNotes(task?.notes ?? "");
     setTags(task?.tags ?? []);
-    setPriority(task?.priority ?? "none");
     setPinned(task?.pinned ?? false);
-    setListId(task?.listId ?? defaultListId);
     setTagDraft("");
     setImage(task?.image ?? null);
-  }, [open, task, defaultListId]);
+  }, [open, task]);
 
   async function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -98,9 +80,7 @@ export function EditTaskModal({
       title: trimmed,
       notes: notes.trim(),
       tags,
-      priority,
       pinned,
-      listId,
       image, // existing /api/images URL is kept; data: URL replaces; null clears
     };
     if (task) onSave(task.id, values);
@@ -125,52 +105,18 @@ export function EditTaskModal({
           />
         </Field>
 
-        <div className="flex gap-3">
-          <Field label="List" className="min-w-0 flex-1">
-            <select
-              value={listId}
-              onChange={(e) => setListId(e.target.value)}
-              className="w-full rounded-md border-[1.8px] border-ink bg-transparent px-3 py-2.5 font-mono text-sm text-ink outline-none focus:shadow-hard-sm"
-            >
-              {lists.map((l) => (
-                <option key={l.id} value={l.id} className="bg-sheet text-ink">
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Pin">
-            <button
-              type="button"
-              onClick={() => setPinned((v) => !v)}
-              aria-pressed={pinned}
-              className={`grid size-[42px] place-items-center rounded-md border-[1.8px] border-ink ${
-                pinned ? "bg-acid text-on-acid" : "text-ink-2"
-              }`}
-            >
-              <PinIcon className="icon size-[18px]" />
-            </button>
-          </Field>
-        </div>
-
-        <Field label="Priority">
-          <div className="flex overflow-hidden rounded-md border-[1.8px] border-ink">
-            {PRIORITIES.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => setPriority(p.value)}
-                className={`flex flex-1 items-center justify-center gap-1.5 border-r-[1.8px] border-ink py-2.5 font-mono text-[11px] tracking-wide uppercase last:border-r-0 ${
-                  priority === p.value
-                    ? `${PRIORITY_FILL[p.value]} font-semibold`
-                    : "text-ink-2"
-                }`}
-              >
-                {p.value !== "none" && <FlagIcon className="icon size-3" />}
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <Field label="Pin">
+          <button
+            type="button"
+            onClick={() => setPinned((v) => !v)}
+            aria-pressed={pinned}
+            className={`flex items-center gap-2 rounded-md border-[1.8px] border-ink px-3 py-2.5 font-display text-sm font-semibold ${
+              pinned ? "bg-acid text-on-acid" : "text-ink-2"
+            }`}
+          >
+            <PinIcon className="icon size-[18px]" />
+            {pinned ? "Pinned to top" : "Pin to top"}
+          </button>
         </Field>
 
         <Field label="Notes">

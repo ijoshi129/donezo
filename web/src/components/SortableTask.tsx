@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Priority, Task } from "../types";
+import type { Task } from "../types";
 import { TaskRow } from "./TaskRow";
 
 interface Props {
@@ -10,9 +10,7 @@ interface Props {
   onEdit: (task: Task) => void;
   onViewImage: (src: string) => void;
   onToggleTag: (tag: string) => void;
-  onTogglePriority: (p: Priority) => void;
   activeTags: string[];
-  activePriorities: Priority[];
 }
 
 export function SortableTask(props: Props) {

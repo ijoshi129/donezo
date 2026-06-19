@@ -7,24 +7,16 @@ import {
   type FormEvent,
   type RefObject,
 } from "react";
-import type { NewTask, Priority } from "../types";
-import { FlagIcon, ImageIcon, MicIcon, PlusIcon } from "./icons";
+import type { NewTask } from "../types";
+import { ImageIcon, MicIcon, PlusIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { parseInput } from "../lib/tags";
-import { PRIORITY_FILL, PRIORITY_SOFT, PRIORITY_TEXT } from "../lib/priority";
 import { useTagDot } from "./TagColor";
 
 interface Props {
   onAdd: (task: NewTask) => void;
   inputRef?: RefObject<HTMLInputElement | null>;
 }
-
-const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-];
 
 // Web Speech API — present on Chrome/Safari (incl. iOS) under a webkit prefix.
 type SpeechRecognitionLike = {
@@ -47,32 +39,22 @@ const voiceSupported = Boolean(SpeechRecognition);
 export function Composer({ onAdd, inputRef }: Props) {
   const [title, setTitle] = useState("");
   const [image, setImage] = useState<string | null>(null);
-  const [priority, setPriority] = useState<Priority>("none");
-  const [prioOpen, setPrioOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const recognition = useRef<SpeechRecognitionLike | null>(null);
   const tagDot = useTagDot();
 
-  // Live-parse "#tag" and "!priority" tokens from the input.
+  // Live-parse "#tag" tokens from the input.
   const parsed = useMemo(() => parseInput(title), [title]);
-  // A "!priority" in the text overrides the flag selection.
-  const effectivePriority = parsed.priority ?? priority;
 
   useEffect(() => () => recognition.current?.stop(), []);
 
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!parsed.title) return;
-    onAdd({
-      title: parsed.title,
-      tags: parsed.tags,
-      image,
-      priority: effectivePriority,
-    });
+    onAdd({ title: parsed.title, tags: parsed.tags, image });
     setTitle("");
     setImage(null);
-    setPriority("none");
   }
 
   async function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
@@ -134,7 +116,7 @@ export function Composer({ onAdd, inputRef }: Props) {
           onChange={(e) => setTitle(e.target.value)}
           onPaste={onPaste}
           maxLength={140}
-          placeholder="Add a task…  #tag  !high"
+          placeholder="Add a task…  #tag"
           className="min-w-0 flex-1 bg-transparent py-1 font-display text-[15px] font-medium text-ink outline-none placeholder:text-ink-3"
         />
 
@@ -150,48 +132,6 @@ export function Composer({ onAdd, inputRef }: Props) {
             <MicIcon className="icon size-[18px]" />
           </button>
         )}
-
-        {/* priority */}
-        <div className="relative">
-          <button
-            type="button"
-            title="Priority"
-            onClick={() => setPrioOpen((o) => !o)}
-            className={`grid size-9 place-items-center rounded-md hover:bg-sheet-2 ${PRIORITY_TEXT[effectivePriority]}`}
-          >
-            <FlagIcon className="icon size-[18px]" />
-          </button>
-          {prioOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setPrioOpen(false)}
-              />
-              <div className="absolute top-full right-0 z-20 mt-1.5 w-32 overflow-hidden rounded-md border-[1.8px] border-ink bg-sheet shadow-hard-sm">
-                {PRIORITIES.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => {
-                      setPriority(p.value);
-                      setPrioOpen(false);
-                    }}
-                    className={`flex w-full items-center gap-2 px-3 py-2 font-mono text-xs ${
-                      priority === p.value
-                        ? `${PRIORITY_FILL[p.value]} font-semibold`
-                        : "text-ink hover:bg-sheet-2"
-                    }`}
-                  >
-                    <FlagIcon
-                      className={`icon size-3 ${p.value === "none" ? "opacity-0" : PRIORITY_TEXT[p.value]}`}
-                    />
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
 
         <button
           type="button"
@@ -243,16 +183,8 @@ export function Composer({ onAdd, inputRef }: Props) {
         </div>
       )}
 
-      {(parsed.tags.length > 0 || parsed.priority) && (
+      {parsed.tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 self-start pl-0.5">
-          {parsed.priority && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-[5px] px-1.5 py-0.5 font-mono text-[11px] font-semibold ${PRIORITY_SOFT[parsed.priority]}`}
-            >
-              <FlagIcon className="icon size-3" />
-              {parsed.priority === "medium" ? "med" : parsed.priority}
-            </span>
-          )}
           {parsed.tags.map((tag) => (
             <span
               key={tag}

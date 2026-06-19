@@ -1,9 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { motion, useMotionValue, useTransform, animate } from "motion/react";
 import { useDrag } from "@use-gesture/react";
-import type { Priority, Task } from "../types";
-import { CheckIcon, FlagIcon, NoteIcon, PinIcon, TrashIcon } from "./icons";
-import { PRIORITY_LABEL, PRIORITY_SOFT } from "../lib/priority";
+import type { Task } from "../types";
+import { CheckIcon, NoteIcon, PinIcon, TrashIcon } from "./icons";
 import { useTagDot } from "./TagColor";
 
 interface Props {
@@ -13,9 +12,7 @@ interface Props {
   onEdit: (task: Task) => void;
   onViewImage: (src: string) => void;
   onToggleTag: (tag: string) => void;
-  onTogglePriority: (p: Priority) => void;
   activeTags: string[];
-  activePriorities: Priority[];
   dragHandle?: ReactNode; // reorder grip (open tasks only)
 }
 
@@ -38,9 +35,7 @@ export function TaskRow({
   onEdit,
   onViewImage,
   onToggleTag,
-  onTogglePriority,
   activeTags,
-  activePriorities,
   dragHandle,
 }: Props) {
   const x = useMotionValue(0);
@@ -155,33 +150,12 @@ export function TaskRow({
             {task.title}
           </p>
 
-          {(task.tags.length > 0 ||
-            (task.priority && task.priority !== "none") ||
-            !!task.notes) && (
+          {(task.tags.length > 0 || !!task.notes) && (
             <div
               className={`mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[11px] text-ink-2 ${
                 task.completed ? "opacity-50" : ""
               }`}
             >
-              {task.priority && task.priority !== "none" && (
-                <button
-                  type="button"
-                  title="Filter by priority"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTogglePriority(task.priority);
-                  }}
-                  className={`inline-flex items-center gap-1 rounded-[5px] px-1.5 py-0.5 font-semibold ${PRIORITY_SOFT[task.priority]} ${
-                    activePriorities.includes(task.priority)
-                      ? "ring-2 ring-ink ring-inset"
-                      : ""
-                  }`}
-                >
-                  <FlagIcon className="icon size-3" />
-                  {PRIORITY_LABEL[task.priority]}
-                </button>
-              )}
-
               {task.tags.map((tag) => {
                 const on = activeTags.includes(tag);
                 return (

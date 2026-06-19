@@ -1,4 +1,4 @@
-import type { List, NewTask, Task } from "./types";
+import type { NewTask, Task } from "./types";
 
 // Error thrown by req() — carries the HTTP status when the server responded
 // (absent for a network failure / offline), so callers can tell them apart.
@@ -62,23 +62,6 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }).then((r) => r.settings),
-
-  listLists: () => req<{ lists: List[] }>("/api/lists").then((r) => r.lists),
-
-  createList: (name: string) =>
-    req<{ list: List }>("/api/lists", {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    }).then((r) => r.list),
-
-  renameList: (id: string, name: string) =>
-    req<{ list: List }>(`/api/lists/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ name }),
-    }).then((r) => r.list),
-
-  deleteList: (id: string) =>
-    req<{ ok: true }>(`/api/lists/${id}`, { method: "DELETE" }),
 
   setTagColor: (tag: string, color: number | null) =>
     req<{ settings: Settings }>("/api/tag-color", {
