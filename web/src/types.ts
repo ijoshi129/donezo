@@ -1,11 +1,5 @@
 export type Priority = "none" | "low" | "medium" | "high";
 
-export interface Subtask {
-  id: string;
-  title: string;
-  done: boolean;
-}
-
 export interface List {
   id: string;
   name: string;
@@ -19,7 +13,6 @@ export interface Task {
   image: string | null;
   tags: string[];
   priority: Priority;
-  subtasks: Subtask[];
   pinned: boolean;
   listId: string;
   completed: boolean;
@@ -33,7 +26,6 @@ export interface NewTask {
   image?: string | null;
   tags?: string[];
   priority?: Priority;
-  subtasks?: Subtask[];
   pinned?: boolean;
   listId?: string;
 }

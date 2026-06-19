@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import type { List, Priority, Subtask, Task } from "../types";
+import type { List, Priority, Task } from "../types";
 import { Modal } from "./Modal";
-import { CheckIcon, FlagIcon, ImageIcon, PinIcon } from "./icons";
+import { FlagIcon, ImageIcon, PinIcon } from "./icons";
 import { fileToDataUrl } from "../lib/image";
 import { PRIORITY_FILL } from "../lib/priority";
 
@@ -10,7 +10,6 @@ export interface TaskValues {
   notes: string;
   tags: string[];
   priority: Priority;
-  subtasks: Subtask[];
   pinned: boolean;
   listId: string;
   image: string | null;
@@ -33,9 +32,6 @@ const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "high", label: "High" },
 ];
 
-let tmp = 0;
-const tmpId = () => `st-${Date.now()}-${tmp++}`;
-
 export function EditTaskModal({
   open,
   task,
@@ -49,8 +45,6 @@ export function EditTaskModal({
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [priority, setPriority] = useState<Priority>("none");
-  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
-  const [subDraft, setSubDraft] = useState("");
   const [pinned, setPinned] = useState(false);
   const [listId, setListId] = useState(defaultListId);
   const [tagDraft, setTagDraft] = useState("");
@@ -64,8 +58,6 @@ export function EditTaskModal({
     setNotes(task?.notes ?? "");
     setTags(task?.tags ?? []);
     setPriority(task?.priority ?? "none");
-    setSubtasks(task?.subtasks ?? []);
-    setSubDraft("");
     setPinned(task?.pinned ?? false);
     setListId(task?.listId ?? defaultListId);
     setTagDraft("");
@@ -97,13 +89,6 @@ export function EditTaskModal({
     }
   }
 
-  function addSubtask() {
-    const t = subDraft.trim().slice(0, 140);
-    if (!t) return;
-    setSubtasks([...subtasks, { id: tmpId(), title: t, done: false }]);
-    setSubDraft("");
-  }
-
   function save() {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -112,7 +97,6 @@ export function EditTaskModal({
       notes: notes.trim(),
       tags,
       priority,
-      subtasks: subtasks.filter((s) => s.title.trim()),
       pinned,
       listId,
       image, // existing /api/images URL is kept; data: URL replaces; null clears
@@ -196,67 +180,6 @@ export function EditTaskModal({
             placeholder="Add details…"
             className="w-full resize-y rounded-md border-[1.8px] border-ink bg-transparent px-3 py-2.5 font-display text-sm text-ink outline-none focus:shadow-hard-sm placeholder:text-ink-3"
           />
-        </Field>
-
-        <Field label="Subtasks">
-          <div className="flex flex-col gap-1.5">
-            {subtasks.map((st) => (
-              <div key={st.id} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSubtasks(
-                      subtasks.map((s) =>
-                        s.id === st.id ? { ...s, done: !s.done } : s,
-                      ),
-                    )
-                  }
-                  className={`grid size-[18px] shrink-0 place-items-center rounded-[5px] border-2 border-ink ${
-                    st.done ? "bg-ink text-acid" : "text-transparent"
-                  }`}
-                >
-                  <CheckIcon className="icon size-2.5" strokeWidth={3} />
-                </button>
-                <input
-                  value={st.title}
-                  onChange={(e) =>
-                    setSubtasks(
-                      subtasks.map((s) =>
-                        s.id === st.id ? { ...s, title: e.target.value } : s,
-                      ),
-                    )
-                  }
-                  className={`min-w-0 flex-1 bg-transparent font-display text-sm outline-none ${
-                    st.done ? "text-ink-3 line-through" : "text-ink"
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setSubtasks(subtasks.filter((s) => s.id !== st.id))}
-                  aria-label="Remove subtask"
-                  className="grid size-6 shrink-0 place-items-center rounded text-ink-3 hover:text-ink"
-                >
-                  <svg viewBox="0 0 24 24" className="icon size-3.5">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-            <input
-              value={subDraft}
-              onChange={(e) => setSubDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addSubtask();
-                }
-              }}
-              onBlur={addSubtask}
-              maxLength={140}
-              placeholder="add a step…"
-              className="rounded-md border-[1.8px] border-dashed border-ink-3 bg-transparent px-3 py-2 font-display text-sm text-ink outline-none focus:border-ink placeholder:text-ink-3"
-            />
-          </div>
         </Field>
 
         <Field label="Tags">

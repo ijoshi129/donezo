@@ -176,7 +176,6 @@ async function routeApi(request, response, url) {
       image: await persistImage(body.image, null),
       tags: normalizeTags(body.tags),
       priority: normalizePriority(body.priority),
-      subtasks: normalizeSubtasks(body.subtasks),
       pinned: body.pinned === true,
       listId: normalizeListId(body.listId),
       completed: false,
@@ -217,9 +216,6 @@ async function routeApi(request, response, url) {
     }
     if (Object.hasOwn(body, "notes")) {
       task.notes = normalizeNotes(body.notes);
-    }
-    if (Object.hasOwn(body, "subtasks")) {
-      task.subtasks = normalizeSubtasks(body.subtasks);
     }
     if (typeof body.pinned === "boolean") {
       task.pinned = body.pinned;
@@ -353,7 +349,7 @@ async function loadStore() {
     for (const task of store.tasks) {
       task.priority = normalizePriority(task.priority);
       if (typeof task.notes !== "string") task.notes = "";
-      task.subtasks = normalizeSubtasks(task.subtasks);
+      delete task.subtasks;
       task.pinned = task.pinned === true;
       task.listId = normalizeListId(task.listId);
       delete task.dueDate;
@@ -441,23 +437,6 @@ function normalizePriority(value) {
 
 function normalizeNotes(value) {
   return typeof value === "string" ? value.slice(0, 4000) : "";
-}
-
-function normalizeSubtasks(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  for (const raw of value) {
-    if (!raw || typeof raw !== "object") continue;
-    const title = String(raw.title || "").trim().slice(0, 140);
-    if (!title) continue;
-    out.push({
-      id: typeof raw.id === "string" ? raw.id : crypto.randomUUID(),
-      title,
-      done: raw.done === true,
-    });
-    if (out.length >= 50) break;
-  }
-  return out;
 }
 
 function normalizeListId(value) {

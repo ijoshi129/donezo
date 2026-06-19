@@ -123,7 +123,6 @@ export default function App() {
           image: vars.image ?? null,
           tags: vars.tags ?? [],
           priority: vars.priority ?? "none",
-          subtasks: vars.subtasks ?? [],
           pinned: vars.pinned ?? false,
           listId: vars.listId ?? createListId,
           completed: false,

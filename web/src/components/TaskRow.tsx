@@ -155,7 +155,6 @@ export function TaskRow({
 
           {(task.tags.length > 0 ||
             (task.priority && task.priority !== "none") ||
-            task.subtasks.length > 0 ||
             !!task.notes) && (
             <div
               className={`mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[11px] text-ink-2 ${
@@ -203,14 +202,6 @@ export function TaskRow({
                   </button>
                 );
               })}
-
-              {task.subtasks.length > 0 && (
-                <span className="inline-flex items-center gap-1">
-                  <CheckIcon className="icon size-3" />
-                  {task.subtasks.filter((s) => s.done).length}/
-                  {task.subtasks.length}
-                </span>
-              )}
 
               {task.notes && (
                 <span className="inline-flex" title="Has notes">
