@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -29,8 +29,11 @@ import { EditTaskModal } from "./components/EditTaskModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { FilterModal } from "./components/FilterModal";
 import { ListsNav, ListChips } from "./components/Lists";
+import { CommandPalette, type Command } from "./components/CommandPalette";
 import { Lightbox } from "./components/Lightbox";
+import { setThemePref } from "./lib/theme";
 import {
+  CommandIcon,
   FilterIcon,
   FlagIcon,
   PlusIcon,
@@ -55,6 +58,7 @@ export default function App() {
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [priorityFilters, setPriorityFilters] = useState<Priority[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<string>("all");
 
   const { data: tasks = [], isLoading, isError, error } = useQuery({
@@ -309,6 +313,77 @@ export default function App() {
     setQuery("");
   };
 
+  // ---- Command palette ----
+  const commands: Command[] = useMemo(() => {
+    const cmds: Command[] = [
+      { id: "new", label: "New task", hint: "N", run: () => setCreating(true) },
+      {
+        id: "search",
+        label: "Search tasks",
+        hint: "/",
+        keywords: "find",
+        run: () => setSearchOpen(true),
+      },
+      { id: "filter", label: "Filter", hint: "F", run: () => setFilterOpen(true) },
+      { id: "settings", label: "Settings", run: () => setSettingsOpen(true) },
+    ];
+    if (filtersActive)
+      cmds.push({ id: "clearf", label: "Clear filters", run: clearFilters });
+    cmds.push(
+      { id: "t-light", label: "Theme: Light", keywords: "appearance", run: () => setThemePref("light") },
+      { id: "t-dark", label: "Theme: Dark", keywords: "appearance", run: () => setThemePref("dark") },
+      { id: "t-auto", label: "Theme: Auto", keywords: "appearance", run: () => setThemePref("auto") },
+      { id: "list-all", label: "Go to: All Tasks", keywords: "list", run: () => setSelectedList("all") },
+    );
+    for (const l of lists)
+      cmds.push({
+        id: `list-${l.id}`,
+        label: `Go to: ${l.name}`,
+        keywords: "list",
+        run: () => setSelectedList(l.id),
+      });
+    return cmds;
+  }, [lists, filtersActive]);
+
+  const anyModalOpen =
+    paletteOpen ||
+    creating ||
+    editing !== null ||
+    settingsOpen ||
+    filterOpen ||
+    lightbox !== null;
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      const typing =
+        !!el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable);
+      if (typing || anyModalOpen) return;
+      if (e.key === "n") {
+        e.preventDefault();
+        setCreating(true);
+      } else if (e.key === "/") {
+        e.preventDefault();
+        setSearchOpen(true);
+      } else if (e.key === "f") {
+        e.preventDefault();
+        setFilterOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [anyModalOpen]);
+
   const { open, done } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const match = (t: Task) =>
@@ -472,6 +547,13 @@ export default function App() {
         >
           <PlusIcon className="icon size-[18px]" strokeWidth={2.6} /> New task
         </button>
+        <SidebarItem
+          onClick={() => setPaletteOpen(true)}
+          label="Command"
+          hint="⌘K"
+        >
+          <CommandIcon className="icon size-[18px]" />
+        </SidebarItem>
         <SidebarItem active={searchOpen} onClick={toggleSearch} label="Search">
           <SearchIcon className="icon size-[18px]" />
         </SidebarItem>
@@ -560,6 +642,11 @@ export default function App() {
         onClear={clearFilters}
       />
       <Lightbox src={lightbox} onClose={() => setLightbox(null)} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={commands}
+      />
 
       <AnimatePresence>
         {toastKind && (
@@ -614,11 +701,13 @@ function IconButton({
 function SidebarItem({
   label,
   active,
+  hint,
   onClick,
   children,
 }: {
   label: string;
   active?: boolean;
+  hint?: string;
   onClick?: () => void;
   children: React.ReactNode;
 }) {
@@ -631,6 +720,11 @@ function SidebarItem({
     >
       {children}
       {label}
+      {hint && (
+        <span className="ml-auto font-mono text-[11px] font-normal opacity-50">
+          {hint}
+        </span>
+      )}
     </button>
   );
 }

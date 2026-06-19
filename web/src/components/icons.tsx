@@ -20,6 +20,12 @@ export const SettingsIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const CommandIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z" />
+  </svg>
+);
+
 export const NoteIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5" />
