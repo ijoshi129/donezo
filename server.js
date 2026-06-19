@@ -16,7 +16,7 @@ const WEB_ROOT =
   (require("node:fs").existsSync(path.join(ROOT, "web", "dist", "index.html"))
     ? path.join(ROOT, "web", "dist")
     : ROOT);
-const DATA_DIR = path.join(ROOT, "data");
+const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "tasks.json");
 const IMAGE_DIR = path.join(DATA_DIR, "images");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
