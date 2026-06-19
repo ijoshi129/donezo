@@ -19,6 +19,8 @@ const WEB_ROOT =
 const DATA_DIR = path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "tasks.json");
 const IMAGE_DIR = path.join(DATA_DIR, "images");
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const BACKUP_KEEP = 14; // daily snapshots of tasks.json retained
 const IMAGE_URL_PREFIX = "/api/images/";
 const MAX_REQUEST_BYTES = 6_000_000;
 const MAX_IMAGE_BYTES = 5_500_000;
@@ -87,6 +89,8 @@ async function start() {
   await loadStore();
   await migrateLegacyImages();
   await clearCompletedAfterNoon();
+  await backupStore(); // snapshot at boot, then once a day while running
+  setInterval(() => void backupStore(), 24 * 60 * 60 * 1000);
 
   const server = http.createServer((request, response) => {
     route(request, response).catch((error) => {
@@ -373,11 +377,60 @@ async function loadStore() {
 
 function saveStore() {
   broadcast(); // notify other devices that data changed
-  writeQueue = writeQueue.then(async () => {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DATA_FILE, `${JSON.stringify(store, null, 2)}\n`);
-  });
+  writeQueue = writeQueue.then(() =>
+    writeFileAtomic(DATA_FILE, `${JSON.stringify(store, null, 2)}\n`),
+  );
   return writeQueue;
+}
+
+// Durable, crash-safe write: stage into a temp file, flush it to disk, then
+// rename over the target. rename(2) is atomic on the same filesystem, so a
+// reader (or a crash) never sees a half-written tasks.json.
+async function writeFileAtomic(file, data) {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp-${process.pid}`;
+  const handle = await fs.open(tmp, "w");
+  try {
+    await handle.writeFile(data);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await fs.rename(tmp, file);
+}
+
+// Keep one snapshot of tasks.json per calendar day so a bad write or an
+// accidental delete is recoverable. Idempotent per day; prunes to the newest
+// BACKUP_KEEP. Never throws into the caller — a failed backup must not take the
+// app down.
+async function backupStore() {
+  try {
+    let current;
+    try {
+      current = await fs.readFile(DATA_FILE);
+    } catch (error) {
+      if (error.code === "ENOENT") return; // nothing persisted yet
+      throw error;
+    }
+    await fs.mkdir(BACKUP_DIR, { recursive: true });
+    const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const target = path.join(BACKUP_DIR, `tasks-${day}.json`);
+    try {
+      await fs.access(target);
+      return; // today's snapshot already exists
+    } catch {
+      /* not yet — fall through and create it */
+    }
+    await writeFileAtomic(target, current);
+    const files = (await fs.readdir(BACKUP_DIR))
+      .filter((f) => /^tasks-\d{4}-\d{2}-\d{2}\.json$/.test(f))
+      .sort();
+    for (const f of files.slice(0, Math.max(0, files.length - BACKUP_KEEP))) {
+      await fs.unlink(path.join(BACKUP_DIR, f)).catch(() => {});
+    }
+  } catch (error) {
+    console.error("backup failed:", error);
+  }
 }
 
 async function readJson(request) {
